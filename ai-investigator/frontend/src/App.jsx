@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
 
 const API = 'http://localhost:8090'
@@ -73,6 +73,16 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [useLlm, setUseLlm] = useState(() => localStorage.getItem('ai-mode') !== 'rules')
+  const [theme, setTheme] = useState(() => localStorage.getItem('ai-theme') || 'light')
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    localStorage.setItem('ai-theme', theme)
+  }, [theme])
+
+  function toggleTheme() {
+    setTheme((t) => (t === 'light' ? 'dark' : 'light'))
+  }
 
   async function investigate() {
     setLoading(true)
@@ -97,6 +107,9 @@ export default function App() {
   return (
     <main className="page">
       <header className="hero">
+        <button className="theme-toggle" onClick={toggleTheme} title="Toggle dark / light mode">
+          {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
+        </button>
         <p className="eyebrow">AI Production Incident Investigator · Phase 14</p>
         <h1>Paste the ticket. Get the trace.</h1>
         <p>Pastes a Jira-style incident, extracts every ID, searches the five service logs, correlates the request, checks the databases (read-only) and names the suspect service.</p>
