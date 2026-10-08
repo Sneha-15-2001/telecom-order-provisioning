@@ -162,6 +162,7 @@ def investigate(incident_text: str, mode: str = "llm") -> dict:
         result["hypothesis"] += (" Note: ticket names an ID but describes no error — "
                                  "analysis is state-based only. Add the failure symptom for a sharper call.")
     result["log_sources"] = {
+        "mode": "pull:" + _ls.LOG_PULL_BASE if _ls.LOG_PULL_BASE else "file",
         "root": str(_ls.LOG_ROOT),
         "files": [str(_ls.LOG_ROOT / s / "app.log") for s in _ls.SERVICES],
     }

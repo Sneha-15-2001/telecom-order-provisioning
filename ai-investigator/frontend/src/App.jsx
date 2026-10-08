@@ -192,7 +192,7 @@ export default function App() {
             </p>
             <p className="muted">{result.safety}</p>
             <h2>Where the logs were read from</h2>
-            <p className="muted">Local rolling files on this machine (Phase 12) — no SSH, no remote pull:</p>
+            <p className="muted">Mode: <code>{result.log_sources?.mode}</code> — pull the same lines yourself:</p>
             <ul className="logsrc">
               {(result.log_sources?.files || []).map((f) => <li key={f}><code>{f}</code></li>)}
             </ul>

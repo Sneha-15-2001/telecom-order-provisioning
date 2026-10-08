@@ -25,6 +25,11 @@ LOG_ROOT = Path(os.environ.get(
     str(Path(__file__).resolve().parents[3] / "logs"),
 ))
 
+# Pull mode: fetch log lines over HTTP from the 127.0.0.1 log server
+# (Phase 14c "store on localhost, pull" pattern) instead of reading files.
+# Set INVESTIGATOR_LOG_PULL=http://127.0.0.1:8899 to enable. Unset = file mode.
+LOG_PULL_BASE = os.environ.get("INVESTIGATOR_LOG_PULL", "").rstrip("/")
+
 TS_RE = re.compile(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})")
 CORR_RE = re.compile(r"\[([A-Za-z0-9_.\-]+),([A-Za-z0-9_.\-]+)\]")
 EVENT_RE = re.compile(r"event=([A-Z_]+)")
@@ -34,12 +39,28 @@ MAX_EXPANDED = 300
 
 
 def _iter_lines(service: str):
+    if LOG_PULL_BASE:
+        yield from _iter_lines_http(service)
+        return
     path = LOG_ROOT / service / "app.log"
     if not path.exists():
         return
     with open(path, encoding="utf-8", errors="replace") as fh:
         for line in fh:
             yield line.rstrip("\n")
+
+
+def _iter_lines_http(service: str):
+    import json
+    import urllib.request
+    url = f"{LOG_PULL_BASE}/api/logs/{service}/app.log"
+    try:
+        with urllib.request.urlopen(url, timeout=15) as resp:
+            data = json.loads(resp.read().decode())
+        for line in data.get("lines", []):
+            yield line
+    except Exception:
+        return
 
 
 def search(entities: dict) -> dict:
