@@ -10,6 +10,23 @@ const SAMPLES = [
   'INC-10103 reservation RSV-22B3887F stuck ACTIVE for order 9999; MSISDN RES-B2979633 blocked RESERVED.',
 ]
 
+const TICKETS = [
+  { id: 'INC-10101', title: 'Stuck payment', text: SAMPLES[0] },
+  { id: 'INC-10102', title: 'eSIM failure', text: SAMPLES[1] },
+  { id: 'INC-10103', title: 'Leaked hold', text: SAMPLES[3] },
+  { id: 'INC-10104', title: 'SMS never delivered', text: 'INC-10104 ORDER_COMPLETED SMS for order 2 never delivered although the order completed.' },
+  { id: 'INC-10105', title: 'Duplicate SMS', text: 'INC-10105 Duplicate ORDER_COMPLETED SMS for order 2 within a minute.' },
+  { id: 'INC-10106', title: 'Suspended customer', text: SAMPLES[2] },
+  { id: 'INC-10107', title: 'Stuck in RETRYING', text: 'INC-10107 Order ORD-475DC248 stuck in RETRYING after a failed payment, never revalidated.' },
+  { id: 'INC-10108', title: 'N+1 slowness', text: 'INC-10108 GET /api/orders is slow: N+1 selects on order_item, one per order in the page.' },
+  { id: 'INC-10109', title: 'Promo vanished', text: 'INC-10109 Promo FESTIVE10 vanished from order ORD-038A154B after modify; payable jumped.' },
+  { id: 'INC-10110', title: 'Expired hold leak', text: 'INC-10110 reservation RSV-C5396D47 can never confirm after TTL; SIM stuck RESERVED.' },
+  { id: 'INC-10111', title: 'Bulk partial failure', text: 'INC-10111 Bulk corporate order partially failed: 2 created, 1 item rejected (customerId null).' },
+  { id: 'INC-10112', title: 'Fiber unlinked', text: 'INC-10112 Broadband activation FAILED (MISSING_RESOURCE) although fiber port is reserved for order 7777.' },
+  { id: 'INC-10113', title: 'Number already taken', text: 'INC-10113 MSISDN 919000007771 refused for customer 2: already in use by customer 1.' },
+  { id: 'INC-10114', title: 'Expired promo', text: 'INC-10114 Promo EXPIRED5 rejected for order 76: outside validity window, flyer still circulating.' },
+]
+
 function Pill({ tone, children }) {
   return <span className={`pill ${tone}`}>{children}</span>
 }
@@ -75,6 +92,17 @@ export default function App() {
           ))}
         </div>
         {error && <div className="alert error">{error}</div>}
+      </section>
+
+      <section className="card">
+        <h2>Incident library — all {TICKETS.length} tickets (click to load)</h2>
+        <div className="ticket-grid">
+          {TICKETS.map((t) => (
+            <button key={t.id} className="ticket" onClick={() => { setText(t.text); setResult(null); window.scrollTo({ top: 0, behavior: 'smooth' }) }} title={t.text}>
+              <strong>{t.id}</strong><span>{t.title}</span>
+            </button>
+          ))}
+        </div>
       </section>
 
       {result && (
