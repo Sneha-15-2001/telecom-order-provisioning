@@ -1,0 +1,41 @@
+<main class="page">
+  <div class="toolbar">
+    <h1 style="margin:0;flex:1">Customers <span class="muted">({{ total() }})</span></h1>
+    <a class="btn" routerLink="/customers/new">＋ New customer</a>
+  </div>
+
+  <div class="toolbar">
+    <input placeholder="Search name, email, phone…" [(ngModel)]="q" (keyup.enter)="load()" style="min-width:260px" />
+    <select [(ngModel)]="status" (change)="load()">
+      <option value="">All statuses</option>
+      <option>ACTIVE</option>
+      <option>INACTIVE</option>
+      <option>SUSPENDED</option>
+      <option>BLOCKED</option>
+    </select>
+    <button class="btn ghost small" (click)="load()">Search</button>
+  </div>
+
+  @if (error()) { <div class="alert error">{{ error() }}</div> }
+  @if (loading()) { <p class="muted">Loading…</p> }
+
+  @if (!loading()) {
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Number</th><th>Name</th><th>Email</th><th>Phone</th><th>Type</th><th>Status</th></tr></thead>
+        <tbody>
+          @for (c of rows(); track c.id) {
+            <tr>
+              <td class="mono"><a class="link" [routerLink]="['/customers', c.id]">{{ c.customerNumber }}</a></td>
+              <td>{{ c.firstName }} {{ c.lastName }}</td>
+              <td>{{ c.email }}</td>
+              <td class="mono">{{ c.phone }}</td>
+              <td>{{ c.customerType }}</td>
+              <td><app-status [status]="c.status" /></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</main>

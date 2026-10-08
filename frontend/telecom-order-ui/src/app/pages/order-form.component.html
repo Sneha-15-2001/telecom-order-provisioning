@@ -1,0 +1,38 @@
+<main class="page">
+  <h1>New order</h1>
+  <p class="muted">Creates a CREATED order for an existing customer. Full lifecycle runs on the order page.</p>
+  @if (error()) { <div class="alert error">{{ error() }}</div> }
+  <div class="card">
+    <div class="form">
+      <label>Customer ID<input type="number" [(ngModel)]="model.customerId" /></label>
+      <label>Customer number<input [(ngModel)]="model.customerNumber" /></label>
+      <label>Order type
+        <select [(ngModel)]="model.orderType">
+          <option>NEW_CONNECTION</option>
+          <option>UPGRADE</option>
+          <option>PLAN_CHANGE</option>
+          <option>DEVICE_ONLY</option>
+          <option>BROADBAND</option>
+          <option>BULK</option>
+        </select>
+      </label>
+      <label>Item type
+        <select [(ngModel)]="model.items[0].itemType">
+          <option>MOBILE_PLAN</option>
+          <option>DEVICE</option>
+          <option>SIM</option>
+          <option>ESIM</option>
+          <option>BROADBAND</option>
+          <option>ADDON</option>
+        </select>
+      </label>
+      <label>Product code<input [(ngModel)]="model.items[0].productCode" /></label>
+      <label>Product name<input [(ngModel)]="model.items[0].productName" /></label>
+      <label>Unit price<input type="number" [(ngModel)]="model.items[0].unitPrice" /></label>
+      <div class="btn-row">
+        <button class="btn" (click)="save()" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Create order' }}</button>
+        <a class="btn ghost" routerLink="/orders">Cancel</a>
+      </div>
+    </div>
+  </div>
+</main>

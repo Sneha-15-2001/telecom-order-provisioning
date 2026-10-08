@@ -1,0 +1,62 @@
+spring:
+  application:
+    name: order-service
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${ORDER_DB_NAME:telecom_order}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:postgres}
+    hikari:
+      maximum-pool-size: 10
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+server:
+  port: ${ORDER_SERVICE_PORT:8082}
+
+app:
+  version: 0.0.1-SNAPSHOT
+
+# Phase 7: synchronous REST integration (pre-Kafka). No cross-database access;
+# order-service calls the owning service over HTTP with X-Correlation-ID.
+integration:
+  customer-service-url: ${CUSTOMER_SERVICE_URL:http://localhost:8081}
+  inventory-service-url: ${INVENTORY_SERVICE_URL:http://localhost:8083}
+  provisioning-service-url: ${PROVISIONING_SERVICE_URL:http://localhost:8084}
+  notification-service-url: ${NOTIFICATION_SERVICE_URL:http://localhost:8085}
+  timeout-seconds: ${INTEGRATION_TIMEOUT_SECONDS:5}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,loggers
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui/index.html
+    enabled: true
+  api-docs:
+    path: /v3/api-docs
+
+info:
+  app:
+    name: order-service
+    version: 0.0.1-SNAPSHOT
+
+logging:
+  level:
+    com.telecom.order: INFO
+    org.hibernate.SQL: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSS} %-5level [${spring.application.name},%X{correlationId:-none}] %logger{36} - %msg%n"

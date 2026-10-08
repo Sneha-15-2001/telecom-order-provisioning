@@ -1,0 +1,53 @@
+<main class="page">
+  <h1>Notifications <span class="muted">({{ total() }} · simulated SMS/email)</span></h1>
+  @if (error()) { <div class="alert error">{{ error() }}</div> }
+  @if (msg()) { <div class="alert ok">{{ msg() }}</div> }
+
+  <div class="card" style="margin-bottom:1rem">
+    <h2>Queue an order notification</h2>
+    <div class="toolbar">
+      <input type="number" placeholder="Order ID" [(ngModel)]="quick.orderId" style="width:110px" />
+      <select [(ngModel)]="quick.channel"><option>SMS</option><option>EMAIL</option><option>PUSH</option></select>
+      <input placeholder="Recipient" [(ngModel)]="quick.recipient" style="width:190px" />
+      <select [(ngModel)]="quick.event">
+        <option>ORDER_CREATED</option>
+        <option>ORDER_COMPLETED</option>
+        <option>PROVISIONING_FAILED</option>
+        <option>PAYMENT_RECEIVED</option>
+      </select>
+      <input placeholder="Order no. (variable)" [(ngModel)]="quick.orderNumber" style="width:150px" />
+      <button class="btn small" (click)="notify()">Queue</button>
+      <select [(ngModel)]="status" (change)="load()">
+        <option value="">All statuses</option>
+        <option>PENDING</option>
+        <option>SENT</option>
+        <option>FAILED</option>
+        <option>CANCELLED</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Number</th><th>Order</th><th>Channel</th><th>Recipient</th><th>Body</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        @for (n of rows(); track n.id) {
+          <tr>
+            <td class="mono">{{ n.notificationNumber }}</td>
+            <td class="mono">{{ n.orderId ?? '—' }}</td>
+            <td>{{ n.channel }}</td>
+            <td class="mono">{{ n.recipient }}</td>
+            <td style="white-space:normal;min-width:220px">{{ n.body }}</td>
+            <td><app-status [status]="n.status" /></td>
+            <td>
+              <div class="btn-row" style="margin:0">
+                @if (n.status === 'PENDING') { <button class="btn small" (click)="send(n)">Send</button> }
+                @if (n.status === 'FAILED') { <button class="btn small" (click)="retry(n)">Retry</button> }
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</main>

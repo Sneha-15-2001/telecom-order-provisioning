@@ -1,0 +1,10 @@
+package com.telecom.notification.repository;
+
+import com.telecom.notification.entity.NotificationTemplate;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface NotificationTemplateRepository extends JpaRepository<NotificationTemplate, Long> {
+
+  Optional<NotificationTemplate> findByTemplateCode(String templateCode);
+}

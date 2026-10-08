@@ -1,0 +1,46 @@
+<main class="page">
+  <a class="link" routerLink="/customers">← All customers</a>
+  @if (error()) { <div class="alert error">{{ error() }}</div> }
+  @if (msg()) { <div class="alert ok">{{ msg() }}</div> }
+
+  @if (customer(); as c) {
+    <div class="hero" style="margin-top:1rem">
+      <h1>{{ c.firstName }} {{ c.lastName }}</h1>
+      <p class="mono">{{ c.customerNumber }} · {{ c.email }} · {{ c.phone }}</p>
+      <div class="hero-actions">
+        <app-status [status]="c.status" />
+        <button class="btn small light" (click)="suspend()">Suspend</button>
+        <button class="btn small light" (click)="reactivate()">Reactivate</button>
+        <button class="btn small light" (click)="validate()">Validate for order</button>
+      </div>
+    </div>
+
+    @if (validation(); as v) {
+      <div class="alert" [class.error]="!v.valid" [class.ok]="v.valid">
+        Validation: {{ v.valid ? 'VALID' : 'INVALID — ' + v.reasons.join(', ') }}
+      </div>
+    }
+
+    <div class="grid two">
+      <div class="card">
+        <h2>Eligibility</h2>
+        @if (eligibility(); as e) {
+          <p><app-status [status]="e.eligible ? 'ACTIVE' : 'FAILED'" /> {{ e.eligible ? 'May buy new services' : e.reasons.join(', ') }}</p>
+        }
+        <h2 style="margin-top:1rem">Subscriptions ({{ subs().length }})</h2>
+        @if (!subs().length) { <p class="muted">No subscriptions yet.</p> }
+        @for (s of subs(); track $index) {
+          <p class="mono">{{ $any(s).subscriptionNumber }} · {{ $any(s).planName }} · <app-status [status]="$any(s).status" /></p>
+        }
+      </div>
+      <div class="card">
+        <h2>History</h2>
+        <ul class="timeline">
+          @for (e of history(); track $index) {
+            <li><strong>{{ e.type }}</strong><br /><span class="muted">{{ e.description }}</span><br /><span class="t">{{ e.timestamp }}</span></li>
+          }
+        </ul>
+      </div>
+    </div>
+  }
+</main>

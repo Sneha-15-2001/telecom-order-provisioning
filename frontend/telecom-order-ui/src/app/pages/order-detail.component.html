@@ -1,0 +1,84 @@
+<main class="page">
+  <a class="link" routerLink="/orders">← All orders</a>
+  @if (error()) { <div class="alert error">{{ error() }}</div> }
+  @if (msg()) { <div class="alert ok">{{ msg() }}</div> }
+
+  @if (order(); as o) {
+    <div class="hero" style="margin-top:1rem">
+      <h1 class="mono">{{ o.orderNumber }}</h1>
+      <p>Customer {{ o.customerNumber || o.customerId }} · {{ o.orderType }} · Total ₹{{ o.totalAmount }} · Discount ₹{{ o.discountAmount }} · <strong>Payable ₹{{ o.payableAmount }}</strong></p>
+      <div class="hero-actions"><app-status [status]="o.status" /></div>
+    </div>
+
+    <div class="card" style="margin-bottom:1rem">
+      <h2>Lifecycle</h2>
+      <div class="btn-row">
+        <button class="btn small" (click)="run('validate')">Validate</button>
+        <button class="btn small" (click)="run('submit')">Submit</button>
+        <button class="btn small ghost" (click)="run('cancel')">Cancel</button>
+        <button class="btn small ghost" (click)="run('retry')">Retry</button>
+        <button class="btn small ghost" (click)="run('reprocess')">Reprocess</button>
+        <button class="btn small ghost" (click)="run('rollback')">Rollback</button>
+      </div>
+      <h2>Payment</h2>
+      <div class="toolbar">
+        <input type="number" [(ngModel)]="payAmount" style="width:140px" />
+        <select [(ngModel)]="payMethod">
+          <option>UPI</option>
+          <option>CARD</option>
+          <option>NETBANKING</option>
+          <option>WALLET</option>
+          <option>CASH</option>
+        </select>
+        <button class="btn small" (click)="pay()">Pay + validate</button>
+      </div>
+      <h2>Promotion</h2>
+      <div class="toolbar">
+        <input [(ngModel)]="promoCode" style="width:160px" />
+        <button class="btn small" (click)="applyPromo()">Apply</button>
+        @if (o.promoCode) { <span class="muted">Applied: <span class="mono">{{ o.promoCode }}</span></span> }
+      </div>
+      <h2>Fulfillment saga</h2>
+      <div class="btn-row">
+        <button class="btn small" (click)="fulfill()">Fulfill end-to-end</button>
+        <button class="btn small ghost" (click)="fulfill('ACTIVATE')">Fulfill (fail at activate)</button>
+      </div>
+      @if (fulfillment(); as f) {
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Step</th><th>Status</th><th>Detail</th></tr></thead>
+            <tbody>
+              @for (s of f.steps; track $index) {
+                <tr><td class="mono">{{ s.step }}</td><td><app-status [status]="s.status" /></td><td>{{ s.detail }}</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+
+    <div class="grid two">
+      <div class="card">
+        <h2>Items ({{ o.items.length }})</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Product</th><th>Qty</th><th>Price</th></tr></thead>
+            <tbody>
+              @for (i of o.items; track $index) {
+                <tr><td>{{ i.productName }}<br /><span class="mono muted">{{ i.productCode }}</span></td><td>{{ i.quantity }}</td><td>₹{{ i.unitPrice }}</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Timeline</h2>
+        <ul class="timeline">
+          @for (e of timeline(); track $index) {
+            <li><strong>{{ e.title }}</strong><br /><span class="muted">{{ e.detail }}</span><br /><span class="t">{{ e.timestamp }}</span></li>
+          }
+        </ul>
+      </div>
+    </div>
+  }
+</main>

@@ -1,0 +1,42 @@
+<main class="page">
+  <div class="toolbar">
+    <h1 style="margin:0;flex:1">Orders <span class="muted">({{ total() }})</span></h1>
+    <a class="btn" routerLink="/orders/new">＋ New order</a>
+  </div>
+
+  <div class="toolbar">
+    <select [(ngModel)]="status" (change)="load()">
+      <option value="">All statuses</option>
+      <option>CREATED</option>
+      <option>VALIDATED</option>
+      <option>PAYMENT_PENDING</option>
+      <option>PAYMENT_COMPLETED</option>
+      <option>FAILED</option>
+      <option>CANCELLED</option>
+      <option>RETRYING</option>
+    </select>
+    <button class="btn ghost small" (click)="load()">Filter</button>
+  </div>
+
+  @if (error()) { <div class="alert error">{{ error() }}</div> }
+  @if (loading()) { <p class="muted">Loading…</p> }
+
+  @if (!loading()) {
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Order</th><th>Customer</th><th>Type</th><th>Payable</th><th>Status</th></tr></thead>
+        <tbody>
+          @for (o of rows(); track o.id) {
+            <tr>
+              <td class="mono"><a class="link" [routerLink]="['/orders', o.id]">{{ o.orderNumber }}</a></td>
+              <td class="mono">{{ o.customerNumber || o.customerId }}</td>
+              <td>{{ o.orderType }}</td>
+              <td>₹{{ o.payableAmount }}</td>
+              <td><app-status [status]="o.status" /></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</main>

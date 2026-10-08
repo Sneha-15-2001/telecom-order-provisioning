@@ -1,0 +1,59 @@
+# Java / Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+.mvn/
+!.mvn/wrapper/maven-wrapper.jar
+
+# Spring Boot
+spring-shell.log
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+*.code-workspace
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node / Angular
+node_modules/
+dist/
+.angular/
+*.js.map
+
+# Env
+.env
+!.env.example
+
+# Docker (FUTURE PHASE 20 ONLY - do not add Dockerfiles yet)
+# docker-compose.override.yml
+
+# Kafka data (FUTURE PHASE 19 ONLY)
+# kafka-data/
+
+# Logs
+logs/
+*.log
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# Temp
+*.tmp
+*.bak

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Order Service logging (Phase 12): console + rolling file.
+     Files: ${LOG_PATH:-logs}/order-service/app.log (10MB × 30 days, 1GB cap).
+     Start services from the repo root, or export LOG_PATH=/abs/path first. -->
+<configuration>
+  <property name="SERVICE" value="order-service"/>
+  <property name="LOG_DIR" value="${LOG_PATH:-logs}/order-service"/>
+  <property name="PATTERN" value="%d{yyyy-MM-dd'T'HH:mm:ss.SSS} %-5level [${SERVICE},%X{correlationId:-none}] %logger{36} - %msg%n"/>
+
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder><pattern>${PATTERN}</pattern></encoder>
+  </appender>
+
+  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_DIR}/app.log</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>${LOG_DIR}/app.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+      <maxFileSize>10MB</maxFileSize>
+      <maxHistory>30</maxHistory>
+      <totalSizeCap>1GB</totalSizeCap>
+    </rollingPolicy>
+    <encoder><pattern>${PATTERN}</pattern></encoder>
+  </appender>
+
+  <logger name="com.telecom" level="INFO"/>
+  <logger name="org.hibernate.SQL" level="WARN"/>
+
+  <root level="INFO">
+    <appender-ref ref="CONSOLE"/>
+    <appender-ref ref="FILE"/>
+  </root>
+</configuration>

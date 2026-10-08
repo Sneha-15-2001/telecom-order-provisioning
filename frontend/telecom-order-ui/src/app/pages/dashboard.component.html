@@ -1,0 +1,78 @@
+<main class="page">
+  <app-carousel [slides]="slides" [intervalMs]="6000" />
+
+  <div class="marquee" appReveal aria-hidden="true">
+    <div class="marquee-track">
+      <span><b>5G Plus</b> · truly unlimited data</span>
+      <span><b>Xstream Fiber</b> · 200 Mbps plans</span>
+      <span><b>eSIM</b> · instant QR activation</span>
+      <span><b>Roaming</b> · 180+ countries</span>
+      <span><b>Business</b> · bulk corporate orders</span>
+      <span><b>5G Plus</b> · truly unlimited data</span>
+      <span><b>Xstream Fiber</b> · 200 Mbps plans</span>
+      <span><b>eSIM</b> · instant QR activation</span>
+      <span><b>Roaming</b> · 180+ countries</span>
+      <span><b>Business</b> · bulk corporate orders</span>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="card"><p class="muted">Loading live data from the five microservices…</p></div>
+  }
+  @if (error()) {
+    <div class="alert error">{{ error() }}</div>
+  }
+
+  @if (!loading() && !error()) {
+    <div class="grid stats">
+      <div class="card stat" appReveal><div class="num"><app-count [value]="stats().customers" /></div><div class="lbl">Customers</div><a routerLink="/customers">View →</a></div>
+      <div class="card stat" appReveal><div class="num"><app-count [value]="stats().orders" /></div><div class="lbl">Orders</div><a routerLink="/orders">View →</a></div>
+      <div class="card stat red" appReveal><div class="num"><app-count [value]="stats().failedOrders" /></div><div class="lbl">Failed orders</div><a routerLink="/orders">Triage →</a></div>
+      <div class="card stat amber" appReveal><div class="num"><app-count [value]="stats().pendingPayments" /></div><div class="lbl">Awaiting payment</div><a routerLink="/orders">View →</a></div>
+      <div class="card stat red" appReveal><div class="num"><app-count [value]="stats().failedProv" /></div><div class="lbl">Failed provisions</div><a routerLink="/provisioning">View →</a></div>
+      <div class="card stat red" appReveal><div class="num"><app-count [value]="stats().failedNotif" /></div><div class="lbl">Failed notifications</div><a routerLink="/notifications">View →</a></div>
+      <div class="card stat green" appReveal><div class="num"><app-count [value]="stats().freeMsisdn" /></div><div class="lbl">Free MSISDNs</div><a routerLink="/inventory">Reserve →</a></div>
+    </div>
+
+    <div class="grid two">
+      <div class="card" appReveal>
+        <h2>Needs attention — failed orders</h2>
+        @if (!failedOrders().length) {
+          <p class="muted">Nothing failing. Clean network.</p>
+        } @else {
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Order</th><th>Status</th><th></th></tr></thead>
+              <tbody>
+                @for (o of failedOrders(); track o.id) {
+                  <tr>
+                    <td class="mono">{{ o.orderNumber }}</td>
+                    <td><app-status [status]="o.status" /></td>
+                    <td><a class="link" [routerLink]="['/orders', o.id]">Open</a></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+      <div class="card" appReveal>
+        <h2>Service health</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Service</th><th>Port</th><th>Health</th></tr></thead>
+            <tbody>
+              @for (h of health(); track h.port) {
+                <tr>
+                  <td class="mono">{{ h.name }}</td>
+                  <td class="mono">{{ h.port }}</td>
+                  <td><app-status [status]="h.up ? 'ACTIVE' : 'FAILED'" /></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  }
+</main>

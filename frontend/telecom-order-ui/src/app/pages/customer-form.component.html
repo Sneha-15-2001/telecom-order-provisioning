@@ -1,0 +1,22 @@
+<main class="page">
+  <h1>New customer</h1>
+  @if (error()) { <div class="alert error">{{ error() }}</div> }
+  <div class="card">
+    <div class="form">
+      <label>First name<input [(ngModel)]="model.firstName" placeholder="Aarav" /></label>
+      <label>Last name<input [(ngModel)]="model.lastName" placeholder="Sharma" /></label>
+      <label>Email<input [(ngModel)]="model.email" placeholder="aarav@example.com" /></label>
+      <label>Phone (7–15 digits, optional +)<input [(ngModel)]="model.phone" placeholder="+919876543210" /></label>
+      <label>Type
+        <select [(ngModel)]="model.customerType">
+          <option>INDIVIDUAL</option>
+          <option>CORPORATE</option>
+        </select>
+      </label>
+      <div class="btn-row">
+        <button class="btn" (click)="save()" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Create customer' }}</button>
+        <a class="btn ghost" routerLink="/customers">Cancel</a>
+      </div>
+    </div>
+  </div>
+</main>

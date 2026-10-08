@@ -1,0 +1,82 @@
+<main class="page">
+  <h1>Inventory <span class="muted">({{ total() }} resources)</span></h1>
+  @if (error()) { <div class="alert error">{{ error() }}</div> }
+  @if (msg()) { <div class="alert ok">{{ msg() }}</div> }
+
+  <div class="toolbar">
+    <select [(ngModel)]="type" (change)="load()">
+      <option value="">All types</option>
+      <option>SIM</option>
+      <option>ESIM</option>
+      <option>MSISDN</option>
+      <option>DEVICE</option>
+      <option>FIBER_PORT</option>
+      <option>ONT</option>
+      <option>ROUTER</option>
+    </select>
+    <select [(ngModel)]="status" (change)="load()">
+      <option value="">All statuses</option>
+      <option>AVAILABLE</option>
+      <option>RESERVED</option>
+      <option>ALLOCATED</option>
+      <option>QUARANTINED</option>
+    </select>
+    <input type="number" placeholder="Order ID to reserve for" [(ngModel)]="reserveOrderId" style="width:200px" />
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Number</th><th>Type</th><th>Identifier</th><th>Status</th><th>Order</th><th></th></tr></thead>
+      <tbody>
+        @for (r of rows(); track r.id) {
+          <tr>
+            <td class="mono">{{ r.resourceNumber }}</td>
+            <td>{{ r.resourceType }}</td>
+            <td class="mono">{{ r.identifier }}</td>
+            <td><app-status [status]="r.status" /></td>
+            <td class="mono">{{ r.orderId ?? '—' }}</td>
+            <td>@if (r.status === 'AVAILABLE') { <button class="btn small" (click)="reserve(r)">Reserve</button> }</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card" style="margin-top:1.25rem">
+    <h2>Reservation quick action</h2>
+    <p class="muted">Same as the confirm/cancel APIs — works for any reservation ID, even outside the holds list.</p>
+    <div class="toolbar">
+      <input type="number" placeholder="Reservation ID (e.g. 3)" [(ngModel)]="quickResId" style="width:220px" />
+      <button class="btn small" (click)="confirmById()">Confirm</button>
+      <button class="btn small ghost" (click)="releaseById()">Release</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:1.25rem">
+    <h2>Active holds</h2>
+    @if (!holds().length) { <p class="muted">No reservations yet.</p> }
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Reservation</th><th>Resource</th><th>Order</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          @for (s of holds(); track s.id) {
+            <tr>
+              <td class="mono">{{ s.reservationNumber }}</td>
+              <td class="mono">{{ s.resourceNumber }}</td>
+              <td class="mono">{{ s.orderId }}</td>
+              <td><app-status [status]="s.status" /></td>
+              <td>
+                <div class="btn-row" style="margin:0">
+                  @if (s.status === 'ACTIVE') {
+                    <button class="btn small" (click)="confirm(s)">Confirm</button>
+                    <button class="btn small ghost" (click)="release(s)">Release</button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>

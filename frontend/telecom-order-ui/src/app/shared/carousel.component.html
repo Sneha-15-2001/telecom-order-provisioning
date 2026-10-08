@@ -1,0 +1,23 @@
+<div class="carousel" (mouseenter)="play()" (mouseleave)="play()">
+  @for (s of slides; track $index) {
+    <section class="hero slide" [class.on]="$index === index()" [attr.aria-hidden]="$index !== index()">
+      <div class="slide-art {{ s.art }}"></div>
+      <p class="eyebrow">{{ s.eyebrow }}</p>
+      <h1>{{ s.title }}</h1>
+      <p>{{ s.sub }}</p>
+      <div class="hero-actions">
+        <a class="btn light" [routerLink]="s.link">{{ s.cta }}</a>
+        @if (s.cta2) {
+          <a class="btn light ghost-light" [routerLink]="s.link2">{{ s.cta2 }}</a>
+        }
+      </div>
+    </section>
+  }
+  <button class="car-arrow left" (click)="prev()" aria-label="Previous">‹</button>
+  <button class="car-arrow right" (click)="next()" aria-label="Next">›</button>
+  <div class="car-dots">
+    @for (s of slides; track $index) {
+      <button [class.on]="$index === index()" (click)="go($index)" [attr.aria-label]="'Slide ' + ($index + 1)"></button>
+    }
+  </div>
+</div>

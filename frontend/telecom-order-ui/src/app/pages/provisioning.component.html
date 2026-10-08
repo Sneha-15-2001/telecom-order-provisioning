@@ -1,0 +1,52 @@
+<main class="page">
+  <h1>Provisioning <span class="muted">({{ total() }} requests · simulated network)</span></h1>
+  @if (error()) { <div class="alert error">{{ error() }}</div> }
+  @if (msg()) { <div class="alert ok">{{ msg() }}</div> }
+
+  <div class="card" style="margin-bottom:1rem">
+    <h2>Quick mobile activation</h2>
+    <div class="toolbar">
+      <input type="number" placeholder="Order ID" [(ngModel)]="newOrderId" style="width:140px" />
+      <input placeholder="MSISDN" [(ngModel)]="newMsisdn" style="width:180px" />
+      <button class="btn small" (click)="quickMobile()">Open request</button>
+      <select [(ngModel)]="status" (change)="load()">
+        <option value="">All statuses</option>
+        <option>PENDING</option>
+        <option>IN_PROGRESS</option>
+        <option>COMPLETED</option>
+        <option>FAILED</option>
+        <option>CANCELLED</option>
+        <option>ROLLED_BACK</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Request</th><th>Order</th><th>Type</th><th>MSISDN</th><th>Status</th><th>Tries</th><th></th></tr></thead>
+      <tbody>
+        @for (r of rows(); track r.id) {
+          <tr>
+            <td class="mono">{{ r.requestNumber }}</td>
+            <td class="mono">{{ r.orderId }}</td>
+            <td>{{ r.serviceType }}</td>
+            <td class="mono">{{ r.msisdn ?? '—' }}</td>
+            <td><app-status [status]="r.status" /></td>
+            <td>{{ r.attempts }}</td>
+            <td>
+              <div class="btn-row" style="margin:0">
+                @if (r.status === 'PENDING') { <button class="btn small" (click)="step(r, 'start')">Start</button> }
+                @if (r.status === 'IN_PROGRESS') { <button class="btn small" (click)="step(r, 'activate')">Activate</button> }
+                @if (r.status === 'FAILED') {
+                  <button class="btn small" (click)="step(r, 'retry')">Retry</button>
+                  <button class="btn small ghost" (click)="step(r, 'rollback')">Rollback</button>
+                }
+                @if (r.status === 'COMPLETED') { <button class="btn small ghost" (click)="step(r, 'deactivate')">Deactivate</button> }
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</main>
