@@ -18,6 +18,19 @@ Run any scenario: `bash incident-scenarios/scenario-01-stuck-payment/setup.sh`
 | 08-n-plus-one | INC-10108 | Order list slow: N+1 selects on order_item (perf) |
 | 09-promo-vanished | INC-10109 | Modify silently drops promotion; payable jumps |
 | 10-expired-hold | INC-10110 | Past-TTL confirm 400s forever; resource stuck RESERVED |
+| 11-bulk-partial | INC-10111 | Corporate bulk: 2 created, 1 item rejected |
+| 12-fiber-noresource | INC-10112 | Fiber port reserved, broadband FAILED (unlinked) |
+| 13-dup-msisdn | INC-10113 | MSISDN refused: already with another customer |
+| 14-expired-promo | INC-10114 | Advertised promo rejected: validity window passed |
+
+Replicate everything at once (except scenario-10, which waits ~70s for a TTL):
+
+```bash
+bash incident-scenarios/run-all.sh
+```
+
+Every run writes real rows + real log lines (with fresh correlation IDs printed
+by each script) — that stored evidence is what the Phase 14 investigator reads.
 
 Evidence for each: correlated logs (`scripts/search-logs.sh <correlationId>`),
 DB rows, and the order/provisioning timeline APIs.
