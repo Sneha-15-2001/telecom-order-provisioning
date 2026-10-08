@@ -137,7 +137,30 @@ export default function App() {
         </div>
       </section>
 
-      {result && (
+      {result && result.needs_info && (
+        <section className="card">
+          <h2>Need more details 🔍</h2>
+          <p>{result.message}</p>
+          {Object.entries(result.candidates || {}).map(([k, rows]) => (
+            <div key={k}>
+              <h3>{k}</h3>
+              <div className="btn-row">
+                {rows.map((r, i) => {
+                  const id = r.order_number || r.request_number || r.notification_number || r.reservation_number;
+                  return (
+                    <button key={i} className="btn small ghost"
+                      onClick={() => setText(`Investigate ${id} (status ${r.status || r.resource_status || ''})`)}>
+                      {id} · {r.status || r.resource_status}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {result && !result.needs_info && (
         <>
           <section className="card verdict">
             <h2>Verdict</h2>

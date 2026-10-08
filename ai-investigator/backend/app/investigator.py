@@ -103,6 +103,28 @@ def _fix_hint(suspect: dict, entities: dict, db: dict) -> str:
 
 def investigate(incident_text: str, mode: str = "llm") -> dict:
     entities = extractor.extract(incident_text)
+    if not dbcheck.has_identifiers(entities):
+        # Vague ticket: don't guess — show what's missing + fresh leads to pick from.
+        return {
+            "incident_text": incident_text,
+            "entities": entities,
+            "needs_info": True,
+            "message": ("No traceable ID found (need at least one of: order number/id, "
+                        "customer number/id, request, reservation, notification or resource number). "
+                        "Pick a lead below, or rephrase with an ID from the ticket."),
+            "candidates": dbcheck.recent_candidates(),
+            "correlations": [],
+            "journey": [],
+            "log_lines": [],
+            "log_stats": {"direct_hits": 0, "lines": 0},
+            "db_evidence": {},
+            "suspect": {"service": None, "signal": "awaiting identifiers", "confidence": "none"},
+            "hypothesis": "Not enough details to investigate yet.",
+            "fix_hint": "UNKNOWN — provide an ID first",
+            "mode": mode,
+            "llm": {"enabled": False, "reason": "Skipped: ticket has no identifiers to ground on."},
+            "safety": "READ-ONLY.",
+        }
     entities = dbcheck.resolve_order_ids(entities)  # numbers -> ids before log search
     logs = logsearch.search(entities)
     db = dbcheck.collect(entities, logs)

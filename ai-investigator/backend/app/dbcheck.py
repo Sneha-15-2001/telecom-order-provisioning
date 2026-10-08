@@ -141,3 +141,41 @@ def resolve_order_ids(entities: dict) -> dict:
     if ids:
         entities["order_id"] = sorted(ids)
     return entities
+
+
+def has_identifiers(entities: dict) -> bool:
+    """True when the ticket names at least one traceable ID."""
+    for f in ("order_number", "order_id", "customer_number", "customer_id",
+              "request_number", "reservation_number", "notification_number",
+              "resource_number"):
+        if entities.get(f):
+            return True
+    return False
+
+
+def recent_candidates() -> dict:
+    """Fresh leads for vague tickets: latest stuck/failed rows per domain."""
+    out = {}
+    o = _select("order",
+                "SELECT id, order_number, status FROM telecom_order "
+                "WHERE status IN ('FAILED','PAYMENT_PENDING','RETRYING') "
+                "ORDER BY id DESC LIMIT 5", ())
+    if o.get("rows"):
+        out["suspicious_orders"] = o["rows"]
+    p = _select("provisioning",
+                "SELECT request_number, service_type, status FROM provisioning_request "
+                "WHERE status = 'FAILED' ORDER BY id DESC LIMIT 5", ())
+    if p.get("rows"):
+        out["failed_provisioning"] = p["rows"]
+    n = _select("notification",
+                "SELECT notification_number, channel, status FROM notification "
+                "WHERE status = 'FAILED' ORDER BY id DESC LIMIT 5", ())
+    if n.get("rows"):
+        out["failed_notifications"] = n["rows"]
+    r = _select("inventory",
+                "SELECT r.reservation_number, r.status, res.resource_number, res.status AS resource_status "
+                "FROM resource_reservation r JOIN inventory_resource res ON res.id = r.resource_id "
+                "WHERE r.status = 'ACTIVE' ORDER BY r.id DESC LIMIT 5", ())
+    if r.get("rows"):
+        out["open_reservations"] = r["rows"]
+    return out
