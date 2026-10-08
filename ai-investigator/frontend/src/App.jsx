@@ -27,16 +27,18 @@ export default function App() {
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [useLlm, setUseLlm] = useState(() => localStorage.getItem('ai-mode') !== 'rules')
 
   async function investigate() {
     setLoading(true)
     setError('')
     setResult(null)
+    localStorage.setItem('ai-mode', useLlm ? 'llm' : 'rules')
     try {
       const res = await fetch(`${API}/api/investigate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ incident_text: text }),
+        body: JSON.stringify({ incident_text: text, mode: useLlm ? 'llm' : 'rules' }),
       })
       if (!res.ok) throw new Error(`backend ${res.status}`)
       setResult(await res.json())
@@ -58,10 +60,16 @@ export default function App() {
       <section className="card">
         <h2>Incident</h2>
         <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder="INC-10101 Order ORD-… stuck…" />
-        <div className="btn-row">
+        <div className="btn-row mode-row">
+          <button className={`mode-toggle ${useLlm ? 'on' : 'off'}`} onClick={() => setUseLlm(!useLlm)} title="ON = LLM reasoning, OFF = rule-based only">
+            <span className="knob" />
+            <span className="mode-label">{useLlm ? 'LLM ON' : 'LLM OFF · rules'}</span>
+          </button>
           <button className="btn" onClick={investigate} disabled={loading || !text.trim()}>
             {loading ? 'Investigating…' : 'Investigate'}
           </button>
+        </div>
+        <div className="btn-row">
           {SAMPLES.map((s, i) => (
             <button key={i} className="btn small ghost" onClick={() => setText(s)}>Sample {i + 1}</button>
           ))}
@@ -71,6 +79,24 @@ export default function App() {
 
       {result && (
         <>
+          <section className="card verdict">
+            <h2>Verdict</h2>
+            <div className="verdict-row">
+              <div>
+                <div className="muted">Fix type</div>
+                <div className="fix-badge">{result.llm?.enabled ? result.llm.analysis.fix_type : result.fix_hint}</div>
+              </div>
+              <div>
+                <div className="muted">Suspect service</div>
+                <div className="fix-badge dim">{result.suspect.service || 'unknown'}</div>
+              </div>
+              <div>
+                <div className="muted">Confidence</div>
+                <div className="fix-badge dim">{result.llm?.enabled ? result.llm.analysis.confidence : result.suspect.confidence}</div>
+              </div>
+            </div>
+          </section>
+
           <section className="card">
             <h2>Hypothesis</h2>
             <p><strong>{result.hypothesis}</strong></p>
@@ -82,6 +108,11 @@ export default function App() {
               {' '}· Correlations: {result.correlations.join(', ') || 'none'}
             </p>
             <p className="muted">{result.safety}</p>
+            <h2>Where the logs were read from</h2>
+            <p className="muted">Local rolling files on this machine (Phase 12) — no SSH, no remote pull:</p>
+            <ul className="logsrc">
+              {(result.log_sources?.files || []).map((f) => <li key={f}><code>{f}</code></li>)}
+            </ul>
           </section>
 
           <section className="card">

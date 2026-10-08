@@ -22,6 +22,7 @@ app.add_middleware(
 
 class InvestigateRequest(BaseModel):
     incident_text: str
+    mode: str = "llm"  # "llm" (default, falls back gracefully) or "rules"
 
 
 @app.get("/api/health")
@@ -31,4 +32,5 @@ def health():
 
 @app.post("/api/investigate")
 def investigate(req: InvestigateRequest):
-    return investigator.investigate(req.incident_text)
+    mode = req.mode if req.mode in ("llm", "rules") else "llm"
+    return investigator.investigate(req.incident_text, mode=mode)

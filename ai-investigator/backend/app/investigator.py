@@ -66,7 +66,22 @@ def _hypothesis(entities: dict, suspect: dict, db: dict) -> str:
             f"Confidence {suspect['confidence']} — verify against the journey + DB below.")
 
 
-def investigate(incident_text: str) -> dict:
+# Rough fix-type hint for rule mode (LLM refines it when enabled).
+DATA_SIGNALS = ("CUSTOMER_INVALID", "CUSTOMER_NOT_FOUND", "MISSING_MSISDN",
+                "MISSING_RESOURCE", "INVENTORY_SHORTAGE", "EXPIRED", "DUPLICATE")
+CODE_SIGNALS = ("N+1", "LEAK", "ROLLBACK", "ORDER_FAILED")
+
+
+def _fix_hint(suspect: dict, entities: dict, db: dict) -> str:
+    text = (suspect.get("signal", "") + " " + " ".join(entities.get("error_hints", []))).upper()
+    if any(s in text for s in ("LEAK", "DUPLICATE", "N+1", "ROLLBACK")):
+        return "CODE (likely) — rule heuristic; enable LLM for a precise call"
+    if "WITHOUT" in text or any(s in text for s in DATA_SIGNALS):
+        return "DATA (likely) — rule heuristic; enable LLM for a precise call"
+    return "UNKNOWN — enable LLM for a precise call"
+
+
+def investigate(incident_text: str, mode: str = "llm") -> dict:
     entities = extractor.extract(incident_text)
     entities = dbcheck.resolve_order_ids(entities)  # numbers -> ids before log search
     logs = logsearch.search(entities)
@@ -84,12 +99,23 @@ def investigate(incident_text: str) -> dict:
         "hypothesis": _hypothesis(entities, suspect, db),
         "safety": "READ-ONLY: searched logs + SELECTs only. No data changed, nothing deployed.",
     }
-    # LLM reasoner on top of the deterministic evidence (disabled without a key).
-    result["llm"] = llmreason.reason(incident_text, {
-        "entities": entities,
-        "journey": logs["journey"],
-        "suspect": suspect,
-        "rule_hypothesis": result["hypothesis"],
-        "db_evidence": db,
-    })
+    # LLM reasoner on top of the deterministic evidence (disabled without a key
+    # or when the UI toggle selects rule mode).
+    from . import logsearch as _ls
+    result["fix_hint"] = _fix_hint(suspect, entities, db)
+    result["log_sources"] = {
+        "root": str(_ls.LOG_ROOT),
+        "files": [str(_ls.LOG_ROOT / s / "app.log") for s in _ls.SERVICES],
+    }
+    result["mode"] = mode
+    if mode == "llm":
+        result["llm"] = llmreason.reason(incident_text, {
+            "entities": entities,
+            "journey": logs["journey"],
+            "suspect": suspect,
+            "rule_hypothesis": result["hypothesis"],
+            "db_evidence": db,
+        })
+    else:
+        result["llm"] = {"enabled": False, "reason": "Rule mode selected in the UI toggle."}
     return result
