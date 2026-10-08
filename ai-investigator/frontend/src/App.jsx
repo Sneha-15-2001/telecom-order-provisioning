@@ -7,7 +7,7 @@ const SAMPLES = [
   'INC-10101 Order ORD-68D80E09 stuck in PAYMENT_PENDING although payment was recorded.',
   'INC-10102 eSIM provisioning PRV-D7AC40C1 FAILED for order 2.',
   'INC-10106 Order ORD-8495EEAF FAILED at validation: customer CUS-DEMO003 SUSPENDED.',
-  'INC-10103 MSISDN stuck RESERVED under leaked reservation.',
+  'INC-10103 reservation RSV-22B3887F stuck ACTIVE for order 9999; MSISDN RES-B2979633 blocked RESERVED.',
 ]
 
 function Pill({ tone, children }) {

@@ -67,17 +67,37 @@ def _hypothesis(entities: dict, suspect: dict, db: dict) -> str:
 
 
 # Rough fix-type hint for rule mode (LLM refines it when enabled).
-DATA_SIGNALS = ("CUSTOMER_INVALID", "CUSTOMER_NOT_FOUND", "MISSING_MSISDN",
-                "MISSING_RESOURCE", "INVENTORY_SHORTAGE", "EXPIRED", "DUPLICATE")
-CODE_SIGNALS = ("N+1", "LEAK", "ROLLBACK", "ORDER_FAILED")
+# Uses the suspect signal + ticket keywords + DB evidence, in that order.
+DATA = "DATA (likely) — rule heuristic; enable LLM for a precise call"
+CODE = "CODE (likely) — rule heuristic; enable LLM for a precise call"
 
 
 def _fix_hint(suspect: dict, entities: dict, db: dict) -> str:
-    text = (suspect.get("signal", "") + " " + " ".join(entities.get("error_hints", []))).upper()
-    if any(s in text for s in ("LEAK", "DUPLICATE", "N+1", "ROLLBACK")):
-        return "CODE (likely) — rule heuristic; enable LLM for a precise call"
-    if "WITHOUT" in text or any(s in text for s in DATA_SIGNALS):
-        return "DATA (likely) — rule heuristic; enable LLM for a precise call"
+    signal = (suspect.get("signal") or "").upper()
+    keywords = " ".join(entities.get("error_hints", [])).upper()
+    statuses = " ".join(entities.get("status_words", [])).upper()
+    text = " ".join([signal, keywords, statuses])
+
+    # CODE: structural defects visible in signal/keywords first.
+    if any(s in text for s in ("DUPLICATE", "N+1", "ROLLBACK")):
+        return CODE
+    if "LEAK" in text or ("EXPIRED" in text and ("RESERV" in text or "HOLD" in text)):
+        return CODE + " — leaked/expired hold never compensated"
+    if "WITHOUT RESOURCE_ALLOCATED" in text or "WITHOUT CONFIRM" in text:
+        return CODE + " — reservation never confirmed/released"
+    # DB evidence first — it beats keyword guessing.
+    for p in db.get("provisioning", []):
+        err = (p.get("last_error") or "").upper()
+        if err.startswith("MISSING"):
+            return DATA + " — activation missing its identifier"
+    if any(p.get("status") == "FAILED" for p in db.get("payments", [])):
+        return DATA + " — a payment attempt failed"
+    if "SUSPENDED" in statuses or "BLOCKED" in statuses or "CUSTOMER" in signal:
+        return DATA + " — customer/master-data state"
+    if "WITHOUT" in signal or "EXPIRED" in text:
+        return DATA + " — a step or validity window lapsed"
+    if "NOTIFICATION" in signal or "SMS" in keywords:
+        return DATA + " — recipient/template content"
     return "UNKNOWN — enable LLM for a precise call"
 
 
