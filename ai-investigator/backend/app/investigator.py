@@ -128,6 +128,18 @@ def investigate(incident_text: str, mode: str = "llm") -> dict:
     entities = dbcheck.resolve_order_ids(entities)  # numbers -> ids before log search
     logs = logsearch.search(entities)
     db = dbcheck.collect(entities, logs)
+    # Error signal required alongside the ID: an error token, a FAILED-ish status,
+    # or DB state showing failure. Dates are never required.
+    has_error = bool(entities.get("error_hints")) or any(
+        w in entities.get("status_words", []) for w in
+        ("FAILED", "CANCELLED", "EXPIRED", "SUSPENDED", "BLOCKED"))
+    if not has_error:
+        for rows in db.values():
+            if isinstance(rows, list) and any(
+                    str(r.get("status", "")).upper() in ("FAILED", "CANCELLED", "EXPIRED")
+                    or str(r.get("last_error", "")) for r in rows if isinstance(r, dict)):
+                has_error = True
+                break
     suspect = _suspect(entities, logs["journey"])
     result = {
         "incident_text": incident_text,
@@ -145,6 +157,10 @@ def investigate(incident_text: str, mode: str = "llm") -> dict:
     # or when the UI toggle selects rule mode).
     from . import logsearch as _ls
     result["fix_hint"] = _fix_hint(suspect, entities, db)
+    result["has_error"] = has_error
+    if not has_error:
+        result["hypothesis"] += (" Note: ticket names an ID but describes no error — "
+                                 "analysis is state-based only. Add the failure symptom for a sharper call.")
     result["log_sources"] = {
         "root": str(_ls.LOG_ROOT),
         "files": [str(_ls.LOG_ROOT / s / "app.log") for s in _ls.SERVICES],

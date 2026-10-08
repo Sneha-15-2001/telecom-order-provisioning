@@ -33,6 +33,7 @@ ERROR_HINTS = [
     "MISSING_MSISDN", "MISSING_RESOURCE", "MISSING_IDENTIFIER", "INVENTORY_SHORTAGE",
     "CUSTOMER_INVALID", "CUSTOMER_NOT_FOUND", "CUSTOMER_SERVICE_UNAVAILABLE",
     "stuck", "expired", "leak", "duplicate", "mismatch", "failed", "rejected",
+    "timeout", "breach", "overcharge", "refused",
 ]
 
 

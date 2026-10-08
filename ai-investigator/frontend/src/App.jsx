@@ -34,10 +34,10 @@ const TICKETS = [
     text: 'INC-10107 Order ORD-475DC248 stuck in RETRYING after a failed payment, never revalidated.' },
   { id: 'INC-10108', title: 'Order queue page slow at scale', status: 'Open', priority: 'P2',
     reporter: 'Storefront Team', created: '2026-10-06 09:30', order: '—', error: 'N+1 selects on order_item',
-    text: 'INC-10108 GET /api/orders is slow: N+1 selects on order_item, one per order in the page.' },
+    text: 'INC-10108 GET /api/orders is slow: N+1 selects on order_item, one per order in the page, breaching response SLA.' },
   { id: 'INC-10109', title: 'Discount vanished after edit, bill shock', status: 'Open', priority: 'P3',
     reporter: 'Customer (complaint)', created: '2026-10-07 13:44', order: 'ORD-038A154B', error: 'Promo cleared on modify',
-    text: 'INC-10109 Promo FESTIVE10 vanished from order ORD-038A154B after modify; payable jumped.' },
+    text: 'INC-10109 Promo FESTIVE10 vanished from order ORD-038A154B after modify; payable jumped (overcharge complaint).' },
   { id: 'INC-10110', title: 'SIM stuck RESERVED, hold can never confirm', status: 'Open', priority: 'P2',
     reporter: 'Inventory Ops', created: '2026-10-07 08:15', order: 'order 8888', error: 'Reservation expired, 400 forever',
     text: 'INC-10110 reservation RSV-C5396D47 can never confirm after TTL; SIM stuck RESERVED.' },
@@ -181,7 +181,7 @@ export default function App() {
           </section>
 
           <section className="card">
-            <h2>Hypothesis</h2>
+            <h2>Hypothesis {result.has_error === false && <span className="pill amber">no error described — state-based only</span>}</h2>
             <p><strong>{result.hypothesis}</strong></p>
             <p className="muted">
               Suspect: <Pill tone={toneFor(result.suspect.confidence === 'high' ? 'FAILED' : 'PENDING')}>{result.suspect.service || 'unknown'}</Pill>
