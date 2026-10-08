@@ -1,0 +1,119 @@
+import { useState } from 'react'
+import './App.css'
+
+const API = 'http://localhost:8090'
+
+const SAMPLES = [
+  'INC-10101 Order ORD-68D80E09 stuck in PAYMENT_PENDING although payment was recorded.',
+  'INC-10102 eSIM provisioning PRV-D7AC40C1 FAILED for order 2.',
+  'INC-10106 Order ORD-8495EEAF FAILED at validation: customer CUS-DEMO003 SUSPENDED.',
+  'INC-10103 MSISDN stuck RESERVED under leaked reservation.',
+]
+
+function Pill({ tone, children }) {
+  return <span className={`pill ${tone}`}>{children}</span>
+}
+
+function toneFor(status) {
+  const s = String(status || '').toUpperCase()
+  if (['ACTIVE', 'COMPLETED', 'SENT', 'SUCCESS', 'VALIDATED', 'CONFIRMED'].includes(s)) return 'green'
+  if (s.includes('FAIL') || ['BLOCKED', 'SUSPENDED'].includes(s)) return 'red'
+  if (['PENDING', 'VALIDATING', 'IN_PROGRESS', 'RETRYING', 'RESERVED'].includes(s)) return 'amber'
+  return 'navy'
+}
+
+export default function App() {
+  const [text, setText] = useState(SAMPLES[0])
+  const [result, setResult] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  async function investigate() {
+    setLoading(true)
+    setError('')
+    setResult(null)
+    try {
+      const res = await fetch(`${API}/api/investigate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ incident_text: text }),
+      })
+      if (!res.ok) throw new Error(`backend ${res.status}`)
+      setResult(await res.json())
+    } catch (e) {
+      setError(`Investigator backend unreachable — is it running on :8090? (${e.message})`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <main className="page">
+      <header className="hero">
+        <p className="eyebrow">AI Production Incident Investigator · Phase 14</p>
+        <h1>Paste the ticket. Get the trace.</h1>
+        <p>Pastes a Jira-style incident, extracts every ID, searches the five service logs, correlates the request, checks the databases (read-only) and names the suspect service.</p>
+      </header>
+
+      <section className="card">
+        <h2>Incident</h2>
+        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder="INC-10101 Order ORD-… stuck…" />
+        <div className="btn-row">
+          <button className="btn" onClick={investigate} disabled={loading || !text.trim()}>
+            {loading ? 'Investigating…' : 'Investigate'}
+          </button>
+          {SAMPLES.map((s, i) => (
+            <button key={i} className="btn small ghost" onClick={() => setText(s)}>Sample {i + 1}</button>
+          ))}
+        </div>
+        {error && <div className="alert error">{error}</div>}
+      </section>
+
+      {result && (
+        <>
+          <section className="card">
+            <h2>Hypothesis</h2>
+            <p><strong>{result.hypothesis}</strong></p>
+            <p className="muted">
+              Suspect: <Pill tone={toneFor(result.suspect.confidence === 'high' ? 'FAILED' : 'PENDING')}>{result.suspect.service || 'unknown'}</Pill>
+              {' '}· Signal: <code>{result.suspect.signal}</code>
+              {' '}· Confidence: {result.suspect.confidence}
+              {' '}· {result.log_stats.lines} log lines, {result.log_stats.direct_hits} direct hits
+              {' '}· Correlations: {result.correlations.join(', ') || 'none'}
+            </p>
+            <p className="muted">{result.safety}</p>
+          </section>
+
+          <div className="grid two">
+            <section className="card">
+              <h2>Extracted entities</h2>
+              {Object.entries(result.entities).map(([k, v]) => (
+                <p key={k}><code>{k}</code>: {v.join(', ')}</p>
+              ))}
+              <h2>Database evidence (SELECT only)</h2>
+              {Object.entries(result.db_evidence).map(([k, rows]) => (
+                <div key={k}>
+                  <h3>{k}</h3>
+                  <pre>{JSON.stringify(rows, null, 1).slice(0, 1200)}</pre>
+                </div>
+              ))}
+            </section>
+            <section className="card">
+              <h2>Service journey</h2>
+              <ul className="timeline">
+                {result.journey.map((j, i) => (
+                  <li key={i}><strong>{j.service}</strong> · {j.event} <Pill tone={toneFor(j.status)}>{j.status}</Pill><br /><span className="t">{j.time}</span></li>
+                ))}
+              </ul>
+            </section>
+          </div>
+
+          <section className="card">
+            <h2>Relevant log lines ({result.log_lines.length})</h2>
+            <pre className="logs">{result.log_lines.map((l) => `[${l.service}] ${l.line}`).join('\n')}</pre>
+          </section>
+        </>
+      )}
+    </main>
+  )
+}
