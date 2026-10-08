@@ -5,7 +5,7 @@ correlate -> journey -> suspect service + hypothesis. RCA text (15), data-fix
 (16) and code-fix (17) build on this output in later phases.
 """
 
-from . import dbcheck, extractor, logsearch
+from . import dbcheck, extractor, llmreason, logsearch
 
 # event -> owning service is known from the log line itself; these rules turn
 # a journey into a suspect + hypothesis.
@@ -72,7 +72,7 @@ def investigate(incident_text: str) -> dict:
     logs = logsearch.search(entities)
     db = dbcheck.collect(entities, logs)
     suspect = _suspect(entities, logs["journey"])
-    return {
+    result = {
         "incident_text": incident_text,
         "entities": entities,
         "correlations": logs["correlations"],
@@ -84,3 +84,12 @@ def investigate(incident_text: str) -> dict:
         "hypothesis": _hypothesis(entities, suspect, db),
         "safety": "READ-ONLY: searched logs + SELECTs only. No data changed, nothing deployed.",
     }
+    # LLM reasoner on top of the deterministic evidence (disabled without a key).
+    result["llm"] = llmreason.reason(incident_text, {
+        "entities": entities,
+        "journey": logs["journey"],
+        "suspect": suspect,
+        "rule_hypothesis": result["hypothesis"],
+        "db_evidence": db,
+    })
+    return result

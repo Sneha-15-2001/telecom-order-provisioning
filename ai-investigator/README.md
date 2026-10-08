@@ -35,3 +35,23 @@ npm install && npm run dev   # → http://localhost:5173
 
 Response: entities, correlations, journey, log lines, DB evidence, suspect,
 hypothesis, safety note. RCA text (15), data-fix (16), code-fix (17) build on this.
+
+## LLM reasoning (optional, Phase 14b)
+
+The deterministic pipeline stays as the evidence collector; an LLM reasons on
+top when configured. No key = rule-based mode (fully working offline).
+
+```bash
+cd ai-investigator/backend
+cp .env.example .env   # then fill ONE provider block
+```
+
+- OpenAI: `LLM_BASE_URL=https://api.openai.com/v1`, `LLM_MODEL=gpt-4o-mini`, key `sk-…`
+- Gemini: `LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai`,
+  `LLM_MODEL=gemini-2.0-flash`, key `AIza…`
+- Ollama (local, free): run `ollama pull llama3.1 && ollama serve`, then
+  `LLM_BASE_URL=http://localhost:11434/v1`, `LLM_MODEL=llama3.1`, any dummy key.
+
+Restart the backend. The UI shows an **LLM analysis** panel (root cause, fix
+type, proposed SQL/code fixes, next steps) or the rule-based fallback notice.
+`.env` is git-ignored — never commit keys.

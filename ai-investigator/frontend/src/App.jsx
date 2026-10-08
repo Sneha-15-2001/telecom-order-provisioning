@@ -84,6 +84,37 @@ export default function App() {
             <p className="muted">{result.safety}</p>
           </section>
 
+          <section className="card">
+            <h2>LLM analysis {result.llm?.enabled ? <span className="pill green">{result.llm.model}</span> : <span className="pill">rule-based mode</span>}</h2>
+            {!result.llm?.enabled && <p className="muted">{result.llm?.reason} Add LLM_API_KEY to ai-investigator/backend/.env to enable.</p>}
+            {result.llm?.enabled && result.llm.analysis && (
+              <>
+                <p><strong>{result.llm.analysis.summary}</strong></p>
+                <p>Root cause: <code>{result.llm.analysis.root_cause}</code> · Confidence: {result.llm.analysis.confidence} · Fix type: {result.llm.analysis.fix_type}</p>
+                <h3>Evidence chain</h3>
+                <ul>{(result.llm.analysis.evidence_refs || []).map((e, i) => <li key={i}>{e}</li>)}</ul>
+                {result.llm.analysis.data_fix_sql && (
+                  <>
+                    <h3>Proposed data fix (needs human approval)</h3>
+                    <pre>{result.llm.analysis.data_fix_sql}</pre>
+                    <p className="muted">Validate: <code>{result.llm.analysis.data_fix_validation}</code><br />Rollback: {result.llm.analysis.data_fix_rollback}</p>
+                  </>
+                )}
+                {result.llm.analysis.code_fix && (
+                  <>
+                    <h3>Proposed code fix — {result.llm.analysis.code_fix.service} / {result.llm.analysis.code_fix.area}</h3>
+                    <p className="muted">Before:</p>
+                    <pre>{result.llm.analysis.code_fix.before}</pre>
+                    <p className="muted">After:</p>
+                    <pre>{result.llm.analysis.code_fix.after}</pre>
+                  </>
+                )}
+                <h3>Next steps</h3>
+                <ul>{(result.llm.analysis.next_steps || []).map((s, i) => <li key={i}>{s}</li>)}</ul>
+              </>
+            )}
+          </section>
+
           <div className="grid two">
             <section className="card">
               <h2>Extracted entities</h2>
