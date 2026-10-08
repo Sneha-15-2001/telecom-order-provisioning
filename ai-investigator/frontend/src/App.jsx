@@ -73,6 +73,8 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [useLlm, setUseLlm] = useState(() => localStorage.getItem('ai-mode') !== 'rules')
+  const [rca, setRca] = useState(null)
+  const [rcaLoading, setRcaLoading] = useState(false)
   const [theme, setTheme] = useState(() => localStorage.getItem('ai-theme') || 'light')
 
   useEffect(() => {
@@ -84,10 +86,38 @@ export default function App() {
     setTheme((t) => (t === 'light' ? 'dark' : 'light'))
   }
 
+  async function generateRca() {
+    setRcaLoading(true)
+    try {
+      const res = await fetch(`${API}/api/rca`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ incident_text: text, mode: useLlm ? 'llm' : 'rules' }),
+      })
+      if (!res.ok) throw new Error(`backend ${res.status}`)
+      setRca(await res.json())
+    } catch (e) {
+      setError(`RCA failed: ${e.message}`)
+    } finally {
+      setRcaLoading(false)
+    }
+  }
+
+  function downloadRca() {
+    if (!rca) return
+    const blob = new Blob([rca.markdown], { type: 'text/markdown' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `RCA-${rca.rca.incident}.md`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
   async function investigate() {
     setLoading(true)
     setError('')
     setResult(null)
+    setRca(null)
     localStorage.setItem('ai-mode', useLlm ? 'llm' : 'rules')
     try {
       const res = await fetch(`${API}/api/investigate`, {
@@ -269,6 +299,35 @@ export default function App() {
           <section className="card">
             <h2>Relevant log lines ({result.log_lines.length})</h2>
             <pre className="logs">{result.log_lines.map((l) => `[${l.service}] ${l.line}`).join('\n')}</pre>
+          </section>
+
+          <section className="card">
+            <h2>Root Cause Analysis</h2>
+            <div className="btn-row">
+              <button className="btn" onClick={generateRca} disabled={rcaLoading}>
+                {rcaLoading ? 'Writing RCA…' : 'Generate RCA document'}
+              </button>
+              {rca && <button className="btn small ghost" onClick={downloadRca}>Download .md</button>}
+            </div>
+            {rca && (
+              <>
+                <h3>{rca.rca.incident} — {rca.rca.confidence} confidence</h3>
+                <p><strong>Impact:</strong> {rca.rca.impact}</p>
+                <p><strong>Affected:</strong> order {rca.rca.affected.order} ({rca.rca.affected.order_status}),
+                  customer {JSON.stringify(rca.rca.affected.customer)}, service {rca.rca.affected.service}</p>
+                <p><strong>Root cause:</strong> <code>{rca.rca.root_cause}</code></p>
+                <h3>Contributing factors</h3>
+                <ul>{rca.rca.contributing_factors.map((c, i) => <li key={i}>{c}</li>)}</ul>
+                <h3>Timeline ({rca.rca.timeline.length} events, {rca.rca.window.first} → {rca.rca.window.last})</h3>
+                <ul className="timeline">
+                  {rca.rca.timeline.map((t, i) => (
+                    <li key={i}><strong>{t.service}</strong> · {t.event} ({t.status})<br /><span className="t">{t.time}</span></li>
+                  ))}
+                </ul>
+                <h3>Recommendation</h3>
+                <p>{rca.rca.recommendation}</p>
+              </>
+            )}
           </section>
         </>
       )}

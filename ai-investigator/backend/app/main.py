@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from . import investigator
+from . import investigator, rca as rca_builder
 
 app = FastAPI(title="AI Incident Investigator", version="0.1.0")
 
@@ -34,3 +34,13 @@ def health():
 def investigate(req: InvestigateRequest):
     mode = req.mode if req.mode in ("llm", "rules") else "llm"
     return investigator.investigate(req.incident_text, mode=mode)
+
+
+@app.post("/api/rca")
+def make_rca(req: InvestigateRequest):
+    """Full pipeline + structured RCA document (JSON + markdown)."""
+    mode = req.mode if req.mode in ("llm", "rules") else "llm"
+    inv = investigator.investigate(req.incident_text, mode=mode)
+    doc = rca_builder.build_rca(inv)
+    return {"rca": doc, "markdown": rca_builder.to_markdown(doc),
+            "investigation": inv}
