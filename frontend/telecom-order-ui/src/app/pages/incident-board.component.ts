@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { StatusPillComponent } from '../shared/status-pill.component';
@@ -36,11 +36,12 @@ interface RcaDoc {
   selector: 'app-incident-board',
   templateUrl: './incident-board.component.html',
 })
-export class IncidentBoardComponent {
+export class IncidentBoardComponent implements OnInit {
   private http = inject(HttpClient);
   private api = 'http://localhost:8090';
 
   tickets = TICKETS;
+  live: Ticket[] | null = null;
   picked: Ticket | null = null;
   draft = signal('');
   busy = signal(false);
@@ -48,6 +49,20 @@ export class IncidentBoardComponent {
   error = signal('');
   inv: Investigation | null = null;
   rca: RcaDoc | null = null;
+
+  ngOnInit(): void {
+    // Live queue from current DB state; stale hardcoded list is only a fallback.
+    this.http.get<{ tickets: Ticket[] }>(`${this.api}/api/incidents`).subscribe({
+      next: (r) => {
+        if (r.tickets && r.tickets.length) this.live = r.tickets;
+      },
+      error: () => {},
+    });
+  }
+
+  rows(): Ticket[] {
+    return this.live ?? this.tickets;
+  }
 
   pick(t: Ticket): void {
     this.picked = t;

@@ -65,12 +65,12 @@
   }
 
   <div class="card">
-    <h2>Incident queue ({{ tickets.length }}) — click to load</h2>
+    <h2>Incident queue ({{ rows().length }}) — {{ live ? 'live from current failures' : 'saved list (investigator unreachable)' }}</h2>
     <div class="table-wrap">
       <table>
         <thead><tr><th>Ticket</th><th>Title</th><th>Reporter</th><th>Order</th><th>Error</th></tr></thead>
         <tbody>
-          @for (t of tickets; track t.id) {
+          @for (t of rows(); track t.id) {
             <tr (click)="pick(t)" style="cursor:pointer">
               <td class="mono"><span class="link">{{ t.id }}</span> <app-status [status]="t.priority" /></td>
               <td style="white-space:normal;min-width:220px">{{ t.title }}</td>
