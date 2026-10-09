@@ -69,18 +69,31 @@ export class IncidentBoardComponent implements OnInit {
   busy = signal(false);
   rcaBusy = signal(false);
   error = signal('');
+  queueError = signal('');
   inv: Investigation | null = null;
   rca: RcaDoc | null = null;
   fixes: { data: { fixes: Fix[] }; code: { fixes: CodeFix[] } } | null = null;
   fixesBusy = signal(false);
 
   ngOnInit(): void {
-    // Live queue from current DB state; stale hardcoded list is only a fallback.
+    this.loadQueue();
+  }
+
+  loadQueue(): void {
+    // Live queue from current DB state; errors are shown, never swallowed.
+    this.queueError.set('');
     this.http.get<{ tickets: Ticket[] }>(`${this.api}/api/incidents`).subscribe({
       next: (r) => {
-        if (r.tickets && r.tickets.length) this.live = r.tickets;
+        if (r.tickets && r.tickets.length) {
+          this.live = r.tickets;
+        } else {
+          this.queueError.set('Backend returned an empty queue — no open failures right now, or DBs unreachable.');
+        }
       },
-      error: () => {},
+      error: (e) => {
+        console.error('incidents queue failed', e);
+        this.queueError.set(`Queue load failed (${e.status ?? 'network'} ${e.statusText ?? ''}) — is the investigator backend on :8090 running?`);
+      },
     });
   }
 

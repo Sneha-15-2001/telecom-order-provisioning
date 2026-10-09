@@ -97,7 +97,8 @@
 
   <div class="card">
     <h2>Incident queue ({{ rows().length }}) — live from current failures</h2>
-    @if (!live) { <p class="muted">Waiting for the investigator backend (:8090) — start it to load live tickets.</p> }
+    @if (!live && !queueError()) { <p class="muted">Loading live tickets…</p> }
+    @if (queueError()) { <div class="alert error">{{ queueError() }} <button class="btn small ghost" (click)="loadQueue()">Retry</button></div> }
     <div class="table-wrap">
       <table>
         <thead><tr><th>Ticket</th><th>Title</th><th>Reporter</th><th>Order</th><th>Error</th></tr></thead>
