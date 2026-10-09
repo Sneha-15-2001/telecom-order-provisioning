@@ -76,10 +76,20 @@
           </div>
         }
         <h2>Permanent code fix <span class="pill navy">proposal only — review + tests + deploy</span></h2>
-        @for (f of fixes.code.fixes; track $index) {
-          <div class="card">
-            <h2>{{ f.title }}</h2>
-            <p class="muted">{{ f.service }} · {{ f.area }}</p>
+          @for (f of fixes.code.fixes; track $index) {
+            <div class="card">
+              <h2>{{ f.title }}</h2>
+              <p class="muted">{{ f.service }} · {{ f.area }}</p>
+              @if (f.location?.class_file) {
+                <p>📄 <span class="mono">{{ f.location.class_file.file }}</span> <span class="muted">({{ f.location.class_file.lines }} lines)</span></p>
+              }
+              @for (m of (f.location?.methods || []); track $index) {
+                <p class="muted">Change <span class="mono">{{ m.file }}:{{ m.start_line }}–{{ m.end_line }}</span> — current code on those lines:</p>
+                <pre class="mono" style="white-space:pre-wrap">{{ m.source }}</pre>
+              }
+              @if (f.location && !f.location.class_file) {
+                <p class="muted">Suggested class not found in this checkout — verify the name before editing.</p>
+              }
             <p>{{ f.problem }}</p>
             <p><strong>Before:</strong></p>
             <pre class="mono" style="white-space:pre-wrap">{{ f.before }}</pre>

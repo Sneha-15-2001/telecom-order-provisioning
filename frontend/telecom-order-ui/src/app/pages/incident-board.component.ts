@@ -44,6 +44,10 @@ interface CodeFix {
   tests: string[];
   risks: string;
   deploy_notes: string;
+  location?: {
+    class_file: { file: string; lines: number } | null;
+    methods: { file: string; start_line: number; end_line: number; source: string }[];
+  };
 }
 
 interface RcaDoc {
