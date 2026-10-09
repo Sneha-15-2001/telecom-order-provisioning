@@ -1,0 +1,85 @@
+<main class="page">
+  <section class="hero">
+    <p class="eyebrow">Production incidents · live board</p>
+    <h1>What's broken, why, and the way out</h1>
+    <p>Pick a ticket → investigate → see whether it's a <strong>DATA</strong> or <strong>CODE</strong> issue → read the RCA + workaround.</p>
+  </section>
+
+  <div class="card">
+    <h2>Investigate any ticket text</h2>
+    <div class="form">
+      <label>Ticket<textarea rows="3" [(ngModel)]="draft" placeholder="INC-10101 Order ORD-… stuck…"></textarea></label>
+      <div class="btn-row">
+        <button class="btn" (click)="investigate()" [disabled]="busy()">{{ busy() ? 'Investigating…' : 'Investigate' }}</button>
+        @if (inv && !rca) { <button class="btn ghost" (click)="makeRca()" [disabled]="rcaBusy()">{{ rcaBusy() ? 'Writing…' : 'Generate RCA' }}</button> }
+      </div>
+    </div>
+    @if (error()) { <div class="alert error">{{ error() }}</div> }
+  </div>
+
+  @if (inv) {
+    <div class="card" style="border-top: 5px solid {{ isData() ? '#0e9f6e' : '#e40000' }}">
+      <h2>The issue</h2>
+      <p>{{ inv.hypothesis }}</p>
+      <div class="btn-row">
+        <span class="pill {{ isData() ? 'green' : 'red' }}" style="font-size:0.9rem">
+          {{ (rca?.fix_type ?? inv.fix_hint).split('—')[0] }}
+        </span>
+        <span class="pill navy">suspect: {{ inv.suspect.service || 'unknown' }}</span>
+        <span class="pill">confidence: {{ inv.suspect.confidence }}</span>
+      </div>
+      @if (!inv.has_error) { <div class="alert error">Ticket names an ID but describes no error — state-based analysis only.</div> }
+
+      <h2>Why {{ isData() ? 'data' : 'code' }}?</h2>
+      <p class="muted">
+        @if (isData()) {
+          The evidence shows wrong or missing <strong>state</strong> (a skipped step, a bad status, a missing identifier, an expired window) —
+          not broken logic. The workaround is a validated data correction; the code paths themselves behaved as designed.
+        } @else {
+          The evidence shows a <strong>structural gap</strong> (no sweeper, no idempotency, leaked compensation, N+1 queries) —
+          data patches only buy time. The workaround unblocks the rows; the permanent fix is code.
+        }
+      </p>
+
+      <h2>Service journey</h2>
+      <ul class="timeline">
+        @for (j of inv.journey; track $index) {
+          <li><strong>{{ j.service }}</strong> · {{ j.event }} <app-status [status]="j.status" /><br /><span class="t">{{ j.time }}</span></li>
+        }
+      </ul>
+
+      <h2>RCA workaround</h2>
+      @if (!rca) {
+        <p class="muted">Generate the RCA for the full document: impact, affected, root cause, contributing factors, recommendation.</p>
+      } @else {
+        <p><strong>Impact:</strong> {{ rca.impact }}</p>
+        <p><strong>Affected:</strong> order {{ rca.affected.order }} ({{ rca.affected.order_status }}) · service {{ rca.affected.service }}</p>
+        <p><strong>Root cause:</strong> {{ rca.root_cause }}</p>
+        <p><strong>Contributing:</strong></p>
+        <ul>@for (c of rca.contributing_factors; track $index) { <li>{{ c }}</li> }</ul>
+        <p><strong>Workaround / recommendation:</strong> {{ rca.recommendation }}</p>
+        <p class="muted">Timeline: {{ rca.timeline.length }} events · read from {{ inv.log_sources.mode }}</p>
+      }
+    </div>
+  }
+
+  <div class="card">
+    <h2>Incident queue ({{ tickets.length }}) — click to load</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Ticket</th><th>Title</th><th>Reporter</th><th>Order</th><th>Error</th></tr></thead>
+        <tbody>
+          @for (t of tickets; track t.id) {
+            <tr (click)="pick(t)" style="cursor:pointer">
+              <td class="mono"><span class="link">{{ t.id }}</span> <app-status [status]="t.priority === 'P2' ? 'FAILED' : 'PENDING'" /></td>
+              <td style="white-space:normal;min-width:220px">{{ t.title }}</td>
+              <td>{{ t.reporter }}</td>
+              <td class="mono">{{ t.order }}</td>
+              <td style="white-space:normal;min-width:200px">{{ t.error }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>

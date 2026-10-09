@@ -10,6 +10,7 @@
     <a routerLink="/inventory" routerLinkActive="active">Inventory</a>
     <a routerLink="/provisioning" routerLinkActive="active">Provisioning</a>
     <a routerLink="/notifications" routerLinkActive="active">Notifications</a>
+    <a routerLink="/incidents" routerLinkActive="active">Incidents</a>
   </nav>
   <button class="theme-toggle" (click)="theme.toggle()" [attr.aria-label]="theme.theme() === 'light' ? 'Switch to dark mode' : 'Switch to light mode'" title="Toggle dark / light mode">
     @if (theme.theme() === 'light') {
