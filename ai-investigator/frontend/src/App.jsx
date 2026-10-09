@@ -313,7 +313,8 @@ export default function App() {
           </section>
 
           <div className="grid two">
-            <section className="card">
+            <details className="card" open>
+              <summary className="sum">IDs + stored records (technical — open to inspect)</summary>
               <h2>Extracted entities</h2>
             <p className="explainer">Names and numbers pulled out of your ticket — everything below is traced from these.</p>
               {Object.entries(result.entities).map(([k, v]) => (
@@ -327,7 +328,7 @@ export default function App() {
                   <pre>{JSON.stringify(rows, null, 1).slice(0, 1200)}</pre>
                 </div>
               ))}
-            </section>
+            </details>
             <section className="card">
               <h2>Service journey</h2>
               <p className="explainer">Every step your request took, in time order, across all five services.</p>
@@ -339,11 +340,10 @@ export default function App() {
             </section>
           </div>
 
-          <section className="card">
-            <h2>Relevant log lines ({result.log_lines.length})</h2>
-            <p className="explainer">The exact lines the verdict is built on — this is the proof, not decoration.</p>
+          <details className="card">
+            <summary className="sum">Relevant log lines ({result.log_lines.length}) — the exact proof</summary>
             <pre className="logs">{result.log_lines.map((l) => `[${l.service}] ${l.line}`).join('\n')}</pre>
-          </section>
+          </details>
 
           <section className="card">
             <h2>Root Cause Analysis</h2>
