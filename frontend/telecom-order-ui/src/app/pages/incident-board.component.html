@@ -72,7 +72,7 @@
         <tbody>
           @for (t of tickets; track t.id) {
             <tr (click)="pick(t)" style="cursor:pointer">
-              <td class="mono"><span class="link">{{ t.id }}</span> <app-status [status]="t.priority === 'P2' ? 'FAILED' : 'PENDING'" /></td>
+              <td class="mono"><span class="link">{{ t.id }}</span> <app-status [status]="t.priority" /></td>
               <td style="white-space:normal;min-width:220px">{{ t.title }}</td>
               <td>{{ t.reporter }}</td>
               <td class="mono">{{ t.order }}</td>
