@@ -155,6 +155,9 @@ pre.logs { max-height: 420px; overflow-y: auto; white-space: pre-wrap; }
 .logsrc { font-size: 0.78rem; }
 .logsrc li { margin-bottom: 0.2rem; }
 
+.fix { border: 1px solid var(--line); border-radius: 12px; padding: 0.8rem 1rem; margin-bottom: 0.9rem; }
+.fix h3 { margin-top: 0.4rem; }
+
 /* incident library */
 .ticket-grid { display: grid; gap: 0.6rem; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
 .ticket {

@@ -82,7 +82,9 @@ def collect(entities: dict, log_result: dict) -> dict:
         if pr.get("rows"):
             evidence.setdefault("provisioning", []).extend(pr["rows"])
         rv = _select("inventory",
-                     "SELECT reservation_number, status FROM resource_reservation WHERE order_id = %s", (int(oid),))
+                     "SELECT r.reservation_number, r.status, res.resource_number, res.status AS resource_status "
+                     "FROM resource_reservation r JOIN inventory_resource res ON res.id = r.resource_id "
+                     "WHERE r.order_id = %s", (int(oid),))
         if rv.get("rows"):
             evidence.setdefault("reservations", []).extend(rv["rows"])
         nt = _select("notification",

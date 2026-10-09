@@ -75,6 +75,8 @@ export default function App() {
   const [useLlm, setUseLlm] = useState(() => localStorage.getItem('ai-mode') !== 'rules')
   const [rca, setRca] = useState(null)
   const [rcaLoading, setRcaLoading] = useState(false)
+  const [fixes, setFixes] = useState(null)
+  const [fixesLoading, setFixesLoading] = useState(false)
   const [theme, setTheme] = useState(() => localStorage.getItem('ai-theme') || 'light')
 
   useEffect(() => {
@@ -103,6 +105,22 @@ export default function App() {
     }
   }
 
+  async function proposeFixes() {
+    setFixesLoading(true)
+    try {
+      const body = JSON.stringify({ incident_text: text, mode: useLlm ? 'llm' : 'rules' })
+      const [d, c] = await Promise.all([
+        fetch(`${API}/api/datafix`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }).then((r) => r.json()),
+        fetch(`${API}/api/codefix`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }).then((r) => r.json()),
+      ])
+      setFixes({ data: d, code: c })
+    } catch (e) {
+      setError(`Fix proposal failed: ${e.message}`)
+    } finally {
+      setFixesLoading(false)
+    }
+  }
+
   function downloadRca() {
     if (!rca) return
     const blob = new Blob([rca.markdown], { type: 'text/markdown' })
@@ -118,6 +136,7 @@ export default function App() {
     setError('')
     setResult(null)
     setRca(null)
+    setFixes(null)
     localStorage.setItem('ai-mode', useLlm ? 'llm' : 'rules')
     try {
       const res = await fetch(`${API}/api/investigate`, {
@@ -308,6 +327,9 @@ export default function App() {
                 {rcaLoading ? 'Writing RCA…' : 'Generate RCA document'}
               </button>
               {rca && <button className="btn small ghost" onClick={downloadRca}>Download .md</button>}
+              <button className="btn small ghost" onClick={proposeFixes} disabled={fixesLoading}>
+                {fixesLoading ? 'Proposing…' : 'Propose fixes'}
+              </button>
             </div>
             {rca && (
               <>
@@ -329,6 +351,40 @@ export default function App() {
               </>
             )}
           </section>
+
+          {fixes && (
+            <>
+              <section className="card">
+                <h2>Temporary data fix <span className="pill amber">proposal only — human approval required</span></h2>
+                {fixes.data.fixes.map((f, i) => (
+                  <div key={i} className="fix">
+                    <h3>{f.kind.toUpperCase()} · {f.title}</h3>
+                    <p>{f.why}</p>
+                    {f.sql.map((s, j) => <pre key={j}>{s}</pre>)}
+                    {f.operation && <p>Operation: <code>{f.operation}</code></p>}
+                    <p className="muted">Validate: {f.validation}<br />Rollback: {f.rollback}</p>
+                  </div>
+                ))}
+                {fixes.data.llm_sql && (<><h3>LLM-drafted SQL</h3><pre>{fixes.data.llm_sql}</pre></>)}
+              </section>
+              <section className="card">
+                <h2>Permanent code fix <span className="pill navy">proposal only — review + tests + deploy</span></h2>
+                {fixes.code.fixes.map((f, i) => (
+                  <div key={i} className="fix">
+                    <h3>{f.title}</h3>
+                    <p className="muted">{f.service} · {f.area}</p>
+                    <p>{f.problem}</p>
+                    <h3>Before</h3><pre>{f.before}</pre>
+                    <h3>After</h3><pre>{f.after}</pre>
+                    <p><strong>Tests:</strong></p>
+                    <ul>{f.tests.map((t, j) => <li key={j}>{t}</li>)}</ul>
+                    <p className="muted"><strong>Risks:</strong> {f.risks}<br /><strong>Deploy:</strong> {f.deploy_notes}</p>
+                  </div>
+                ))}
+                {fixes.code.llm_code_fix && (<><h3>LLM-drafted fix</h3><pre>{JSON.stringify(fixes.code.llm_code_fix, null, 1)}</pre></>)}
+              </section>
+            </>
+          )}
         </>
       )}
     </main>
