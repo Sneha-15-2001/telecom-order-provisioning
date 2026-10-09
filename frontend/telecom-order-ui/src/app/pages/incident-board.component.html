@@ -11,9 +11,7 @@
     <div class="form">
       <label>Ticket<textarea rows="3" [(ngModel)]="draft" placeholder="INC-10101 Order ORD-… stuck…"></textarea></label>
       <div class="btn-row">
-        <button class="btn" (click)="investigate()" [disabled]="busy()">{{ busy() ? 'Investigating…' : 'Investigate' }}</button>
-        @if (inv && !rca) { <button class="btn ghost" (click)="makeRca()" [disabled]="rcaBusy()">{{ rcaBusy() ? 'Writing…' : 'Generate RCA' }}</button> }
-        @if (inv && !fixes) { <button class="btn ghost" (click)="proposeFixes()" [disabled]="fixesBusy()">{{ fixesBusy() ? 'Proposing…' : 'Propose fixes' }}</button> }
+        <button class="btn" (click)="investigate()" [disabled]="busy()">{{ busy() ? 'Investigating + writing RCA + proposing fixes…' : 'Investigate' }}</button>
       </div>
     </div>
     @if (error()) { <div class="alert error">{{ error() }}</div> }
@@ -29,6 +27,7 @@
         </span>
         <span class="pill navy">failed rows in: {{ (inv.owner?.services || []).join(', ') || 'none' }}</span>
         <span class="pill">confidence: {{ rca?.confidence ?? inv.verdict?.confidence ?? '—' }}</span>
+        <span class="pill navy">when: {{ rca?.timeline?.length ? ((rca.timeline[0].time || '?') + ' → ' + (rca.timeline[rca.timeline.length - 1].time || '?')) : '…' }}</span>
       </div>
       @if (!inv.has_error) { <div class="alert error">Ticket names an ID but describes no error — state-based analysis only.</div> }
 

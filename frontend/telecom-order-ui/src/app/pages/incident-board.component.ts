@@ -131,61 +131,36 @@ export class IncidentBoardComponent implements OnInit {
     this.inv = null;
     this.rca = null;
     this.fixes = null;
-    this.http.post<Investigation>(`${this.api}/api/investigate`, { incident_text: text, mode: 'llm' }).subscribe({
+    const body = { incident_text: text, mode: 'llm' };
+    // One click runs everything: investigation + RCA + fix proposals.
+    this.http.post<Investigation>(`${this.api}/api/investigate`, body).subscribe({
       next: (r) => {
         this.inv = r;
         this.busy.set(false);
         this.cdr.markForCheck();
+        this.http.post<{ rca: RcaDoc }>(`${this.api}/api/rca`, body).subscribe({
+          next: (rr) => {
+            this.rca = rr.rca;
+            this.cdr.markForCheck();
+          },
+          error: () => {},
+        });
+        this.http.post<{ fixes: Fix[] }>(`${this.api}/api/datafix`, body).subscribe({
+          next: (d) => {
+            this.http.post<{ fixes: CodeFix[] }>(`${this.api}/api/codefix`, body).subscribe({
+              next: (c) => {
+                this.fixes = { data: d, code: c };
+                this.cdr.markForCheck();
+              },
+              error: () => {},
+            });
+          },
+          error: () => {},
+        });
       },
       error: () => {
         this.error.set('Investigator backend (:8090) is unreachable — start it first.');
         this.busy.set(false);
-        this.cdr.markForCheck();
-      },
-    });
-  }
-
-  makeRca(): void {
-    const text = this.draft().trim();
-    if (!text || this.rcaBusy()) return;
-    this.rcaBusy.set(true);
-    this.http.post<{ rca: RcaDoc }>(`${this.api}/api/rca`, { incident_text: text, mode: 'llm' }).subscribe({
-      next: (r) => {
-        this.rca = r.rca;
-        this.rcaBusy.set(false);
-        this.cdr.markForCheck();
-      },
-      error: () => {
-        this.error.set('RCA failed — is :8090 up?');
-        this.rcaBusy.set(false);
-        this.cdr.markForCheck();
-      },
-    });
-  }
-
-  proposeFixes(): void {
-    const text = this.draft().trim();
-    if (!text || this.fixesBusy()) return;
-    this.fixesBusy.set(true);
-    const body = { incident_text: text, mode: 'llm' };
-    this.http.post<{ fixes: Fix[] }>(`${this.api}/api/datafix`, body).subscribe({
-      next: (d) => {
-        this.http.post<{ fixes: CodeFix[] }>(`${this.api}/api/codefix`, body).subscribe({
-          next: (c) => {
-            this.fixes = { data: d, code: c };
-            this.fixesBusy.set(false);
-            this.cdr.markForCheck();
-          },
-          error: () => {
-            this.error.set('Code-fix proposal failed — is :8090 up?');
-            this.fixesBusy.set(false);
-            this.cdr.markForCheck();
-          },
-        });
-      },
-      error: () => {
-        this.error.set('Data-fix proposal failed — is :8090 up?');
-        this.fixesBusy.set(false);
         this.cdr.markForCheck();
       },
     });
