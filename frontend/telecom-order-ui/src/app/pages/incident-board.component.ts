@@ -4,15 +4,24 @@ import { FormsModule } from '@angular/forms';
 import { StatusPillComponent } from '../shared/status-pill.component';
 import { Ticket } from './incident-live.model';
 
+interface Verdict {
+  summary: string;
+  root_cause: string;
+  fix_type: string;
+  confidence: string;
+}
+
 interface Investigation {
-  hypothesis: string;
-  suspect: { service: string; signal: string; confidence: string };
-  fix_hint: string;
   has_error: boolean;
   journey: { service: string; event: string; status: string; time: string }[];
   log_lines: { service: string; line: string }[];
   log_sources: { mode: string; files: string[] };
   db_evidence: Record<string, unknown[]>;
+  owner: { services: string[] };
+  verdict: Verdict | null;
+  message?: string;
+  correlations: string[];
+  log_stats: { direct_hits: number; lines: number };
 }
 
 interface Fix {
@@ -183,7 +192,11 @@ export class IncidentBoardComponent implements OnInit {
   }
 
   isData(): boolean {
-    const f = (this.rca?.fix_type ?? this.inv?.fix_hint ?? '').toUpperCase();
+    const f = (this.rca?.fix_type ?? this.inv?.verdict?.fix_type ?? '').toUpperCase();
     return f.startsWith('DATA');
+  }
+
+  verdictSummary(): string {
+    return this.inv?.verdict?.summary ?? this.inv?.message ?? 'Add the LLM key for the AI verdict.';
   }
 }

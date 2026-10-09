@@ -21,14 +21,14 @@
 
   @if (inv) {
     <div class="card" style="border-top: 5px solid {{ isData() ? '#0e9f6e' : '#e40000' }}">
-      <h2>The issue</h2>
-      <p>{{ inv.hypothesis }}</p>
+      <h2>The issue — decided by the AI from live evidence</h2>
+      <p>{{ verdictSummary() }}</p>
       <div class="btn-row">
         <span class="pill {{ isData() ? 'green' : 'red' }}" style="font-size:0.9rem">
-          {{ (rca?.fix_type ?? inv.fix_hint).split('—')[0] }}
+          {{ (rca?.fix_type ?? inv.verdict?.fix_type ?? 'awaiting AI verdict').split('—')[0] }}
         </span>
-        <span class="pill navy">suspect: {{ inv.suspect.service || 'unknown' }}</span>
-        <span class="pill">confidence: {{ inv.suspect.confidence }}</span>
+        <span class="pill navy">failed rows in: {{ (inv.owner?.services || []).join(', ') || 'none' }}</span>
+        <span class="pill">confidence: {{ rca?.confidence ?? inv.verdict?.confidence ?? '—' }}</span>
       </div>
       @if (!inv.has_error) { <div class="alert error">Ticket names an ID but describes no error — state-based analysis only.</div> }
 
