@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { StatusPillComponent } from '../shared/status-pill.component';
@@ -60,6 +60,7 @@ interface RcaDoc {
 })
 export class IncidentBoardComponent implements OnInit {
   private http = inject(HttpClient);
+  private cdr = inject(ChangeDetectorRef);
   private api = 'http://localhost:8090';
 
   tickets: Ticket[] = [];
@@ -89,10 +90,12 @@ export class IncidentBoardComponent implements OnInit {
         } else {
           this.queueError.set('Backend returned an empty queue — no open failures right now, or DBs unreachable.');
         }
+        this.cdr.markForCheck();
       },
       error: (e) => {
         console.error('incidents queue failed', e);
         this.queueError.set(`Queue load failed (${e.status ?? 'network'} ${e.statusText ?? ''}) — is the investigator backend on :8090 running?`);
+        this.cdr.markForCheck();
       },
     });
   }
@@ -123,10 +126,12 @@ export class IncidentBoardComponent implements OnInit {
       next: (r) => {
         this.inv = r;
         this.busy.set(false);
+        this.cdr.markForCheck();
       },
       error: () => {
         this.error.set('Investigator backend (:8090) is unreachable — start it first.');
         this.busy.set(false);
+        this.cdr.markForCheck();
       },
     });
   }
@@ -139,10 +144,12 @@ export class IncidentBoardComponent implements OnInit {
       next: (r) => {
         this.rca = r.rca;
         this.rcaBusy.set(false);
+        this.cdr.markForCheck();
       },
       error: () => {
         this.error.set('RCA failed — is :8090 up?');
         this.rcaBusy.set(false);
+        this.cdr.markForCheck();
       },
     });
   }
@@ -158,16 +165,19 @@ export class IncidentBoardComponent implements OnInit {
           next: (c) => {
             this.fixes = { data: d, code: c };
             this.fixesBusy.set(false);
+            this.cdr.markForCheck();
           },
           error: () => {
             this.error.set('Code-fix proposal failed — is :8090 up?');
             this.fixesBusy.set(false);
+            this.cdr.markForCheck();
           },
         });
       },
       error: () => {
         this.error.set('Data-fix proposal failed — is :8090 up?');
         this.fixesBusy.set(false);
+        this.cdr.markForCheck();
       },
     });
   }
