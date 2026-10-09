@@ -2,7 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { StatusPillComponent } from '../shared/status-pill.component';
-import { TICKETS, Ticket } from './incident-tickets.data';
+import { Ticket } from './incident-live.model';
 
 interface Investigation {
   hypothesis: string;
@@ -62,7 +62,7 @@ export class IncidentBoardComponent implements OnInit {
   private http = inject(HttpClient);
   private api = 'http://localhost:8090';
 
-  tickets = TICKETS;
+  tickets: Ticket[] = [];
   live: Ticket[] | null = null;
   picked: Ticket | null = null;
   draft = signal('');

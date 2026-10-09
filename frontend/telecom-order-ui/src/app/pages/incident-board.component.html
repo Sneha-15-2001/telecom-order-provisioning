@@ -96,7 +96,8 @@
   }
 
   <div class="card">
-    <h2>Incident queue ({{ rows().length }}) — {{ live ? 'live from current failures' : 'saved list (investigator unreachable)' }}</h2>
+    <h2>Incident queue ({{ rows().length }}) — live from current failures</h2>
+    @if (!live) { <p class="muted">Waiting for the investigator backend (:8090) — start it to load live tickets.</p> }
     <div class="table-wrap">
       <table>
         <thead><tr><th>Ticket</th><th>Title</th><th>Reporter</th><th>Order</th><th>Error</th></tr></thead>
