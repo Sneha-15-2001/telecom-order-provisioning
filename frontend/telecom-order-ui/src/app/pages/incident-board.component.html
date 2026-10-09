@@ -13,6 +13,7 @@
       <div class="btn-row">
         <button class="btn" (click)="investigate()" [disabled]="busy()">{{ busy() ? 'Investigating…' : 'Investigate' }}</button>
         @if (inv && !rca) { <button class="btn ghost" (click)="makeRca()" [disabled]="rcaBusy()">{{ rcaBusy() ? 'Writing…' : 'Generate RCA' }}</button> }
+        @if (inv && !fixes) { <button class="btn ghost" (click)="proposeFixes()" [disabled]="fixesBusy()">{{ fixesBusy() ? 'Proposing…' : 'Propose fixes' }}</button> }
       </div>
     </div>
     @if (error()) { <div class="alert error">{{ error() }}</div> }
@@ -62,6 +63,36 @@
         <p class="muted">Timeline: {{ rca.timeline.length }} events · read from {{ inv.log_sources.mode }}</p>
       }
     </div>
+
+    @if (fixes) {
+      <div class="card">
+        <h2>Temporary workaround <span class="pill amber">proposal only — human approval required</span></h2>
+        @for (f of fixes.data.fixes; track $index) {
+          <div class="card">
+            <h2>{{ f.kind.toUpperCase() }} · {{ f.title }}</h2>
+            <p>{{ f.why }}</p>
+            @for (s of f.sql; track $index) { <pre class="mono" style="white-space:pre-wrap">{{ s }}</pre> }
+            @if (f.operation) { <p>Run: <span class="mono">{{ f.operation }}</span></p> }
+            <p class="muted">Check first: {{ f.validation }}<br />Undo: {{ f.rollback }}</p>
+          </div>
+        }
+        <h2>Permanent code fix <span class="pill navy">proposal only — review + tests + deploy</span></h2>
+        @for (f of fixes.code.fixes; track $index) {
+          <div class="card">
+            <h2>{{ f.title }}</h2>
+            <p class="muted">{{ f.service }} · {{ f.area }}</p>
+            <p>{{ f.problem }}</p>
+            <p><strong>Before:</strong></p>
+            <pre class="mono" style="white-space:pre-wrap">{{ f.before }}</pre>
+            <p><strong>After:</strong></p>
+            <pre class="mono" style="white-space:pre-wrap">{{ f.after }}</pre>
+            <p><strong>Tests:</strong></p>
+              <ul>@for (t of f.tests; track $index) { <li>{{ t }}</li> }</ul>
+            <p class="muted"><strong>Risks:</strong> {{ f.risks }}<br /><strong>Ship it:</strong> {{ f.deploy_notes }}</p>
+          </div>
+        }
+      </div>
+    }
   }
 
   <div class="card">

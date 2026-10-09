@@ -87,7 +87,12 @@ def _fix_hint(suspect: dict, entities: dict, db: dict) -> str:
     signal = (suspect.get("signal") or "").upper()
     keywords = " ".join(entities.get("error_hints", [])).upper()
     statuses = " ".join(entities.get("status_words", [])).upper()
-    text = " ".join([signal, keywords, statuses])
+    # History comments + payment/provisioning states are first-class evidence too
+    # (e.g. ORDER_FAILED alone says nothing; its CUSTOMER_INVALID comment says DATA).
+    history_text = " ".join(
+        str(h.get("comment") or "") + " " + str(h.get("event") or "")
+        for h in db.get("order_history", []) if isinstance(h, dict)).upper()
+    text = " ".join([signal, keywords, statuses, history_text])
 
     # CODE: structural defects visible in signal/keywords first.
     if any(s in text for s in ("DUPLICATE", "N+1", "ROLLBACK")):
@@ -105,7 +110,8 @@ def _fix_hint(suspect: dict, entities: dict, db: dict) -> str:
             return DATA + " — activation missing its identifier"
     if any(p.get("status") == "FAILED" for p in db.get("payments", [])):
         return DATA + " — a payment attempt failed"
-    if "SUSPENDED" in statuses or "BLOCKED" in statuses or "CUSTOMER" in signal:
+    if "SUSPENDED" in statuses or "BLOCKED" in statuses or "CUSTOMER" in signal \
+            or "SUSPENDED" in history_text or "CUSTOMER_INVALID" in history_text:
         return DATA + " — customer/master-data state"
     if "WITHOUT" in signal or "EXPIRED" in text:
         return DATA + " — a step or validity window lapsed"
