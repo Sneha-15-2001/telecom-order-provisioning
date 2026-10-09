@@ -1,0 +1,28 @@
+<div class="chat-fab-wrap">
+  @if (open()) {
+    <section class="chat-panel">
+      <header>
+        <strong>NexaTel Ops Assistant</strong>
+        <button (click)="toggle()" aria-label="Close">✕</button>
+      </header>
+      <div class="chat-body">
+        @for (m of messages(); track $index) {
+          <div class="bubble {{ m.from }}"><pre>{{ m.text }}</pre></div>
+        }
+        @if (busy()) {
+          <div class="bubble bot"><pre>thinking…</pre></div>
+        }
+      </div>
+      <div class="chat-quick">
+        @for (q of quick; track $index) {
+          <button (click)="ask(q)">{{ q }}</button>
+        }
+      </div>
+      <footer>
+        <input [(ngModel)]="draft" (keyup.enter)="ask(draft())" placeholder="Ask about tickets, health, incidents…" />
+        <button class="btn small" (click)="ask(draft())" [disabled]="busy()">Send</button>
+      </footer>
+    </section>
+  }
+  <button class="chat-fab" (click)="toggle()" [attr.aria-label]="open() ? 'Close assistant' : 'Open assistant'">💬</button>
+</div>
