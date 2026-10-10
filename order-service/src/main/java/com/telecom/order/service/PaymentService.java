@@ -81,8 +81,28 @@ public class PaymentService {
         .findFirst()
         .orElseThrow(() -> new NoSuchElementException("No payment recorded for order: " + orderId));
     BigDecimal expected = o.getTotalAmount().subtract(o.getDiscountAmount()).max(BigDecimal.ZERO);
-    boolean ok = latest.getAmount().compareTo(expected) >= 0
-        && o.getStatus() == OrderStatus.PAYMENT_PENDING;
+
+    // Idempotency guard. Payment providers retry webhooks, and an operator may
+    // re-submit. Without this, a second call on an order that is already paid
+    // falls through to the branch below, marks the SUCCESSFUL payment FAILED and
+    // drives a paid order back to FAILED. Re-validating is a no-op, not a
+    // reversal.
+    if (o.getStatus() == OrderStatus.PAYMENT_COMPLETED && latest.getStatus() == PaymentStatus.SUCCESS) {
+      log.info("service=order-service correlationId={} orderId={} event=PAYMENT_VALIDATE_SKIPPED reason=already-paid status={}",
+          correlationId(), orderId, o.getStatus());
+      return new PaymentValidationResponse(o.getId(), latest.getPaymentReference(),
+          expected, latest.getAmount(), true, o.getStatus());
+    }
+    // Any other state means validation is not possible: the order was never
+    // submitted for payment, or it was cancelled. Say so instead of failing the
+    // payment on the customer's behalf.
+    if (o.getStatus() != OrderStatus.PAYMENT_PENDING) {
+      throw new IllegalStateException(
+          "Payment cannot be validated while the order is " + o.getStatus()
+              + " — only orders awaiting payment can be validated.");
+    }
+
+    boolean ok = latest.getAmount().compareTo(expected) >= 0;
     if (ok) {
       latest.setStatus(PaymentStatus.SUCCESS);
       OrderStatus from = o.getStatus();

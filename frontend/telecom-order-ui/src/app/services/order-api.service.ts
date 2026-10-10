@@ -29,10 +29,26 @@ export interface Order {
   items: OrderItem[];
 }
 
+export interface Product {
+  id: number;
+  productCode: string;
+  name: string;
+  itemType: string;
+  price: number;
+  description?: string;
+  dataGb?: number;
+  active: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class OrderApiService {
   private http = inject(HttpClient);
   private base = `${API_ENDPOINTS.order}/api/orders`;
+
+  /** Sellable catalogue — order entry picks from this instead of typing codes. */
+  catalogue(): Observable<Product[]> {
+    return this.http.get<Product[]>(`${API_ENDPOINTS.order}/api/products`);
+  }
 
   list(page = 0, size = 10, status = ''): Observable<Page<Order>> {
     let params = new HttpParams().set('page', page).set('size', size);

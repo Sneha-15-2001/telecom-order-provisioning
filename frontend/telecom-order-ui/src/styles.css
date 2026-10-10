@@ -758,3 +758,49 @@ a.link { color: var(--airtel-red); font-weight: 700; }
 }
 
 .stat .num { font-variant-numeric: tabular-nums; }
+
+/* --- order entry: customer search, catalogue, basket --------------------- */
+.row-between { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+
+.field { display: flex; flex-direction: column; gap: .25rem; }
+.field > span { font-size: .78rem; color: var(--ink-soft); }
+
+.results { margin-top: .5rem; display: flex; flex-direction: column; gap: .3rem; }
+.result {
+  display: flex; align-items: center; gap: .7rem; text-align: left; cursor: pointer;
+  padding: .5rem .65rem; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--card); color: var(--ink); font: inherit; font-size: .9rem;
+}
+.result:hover { border-color: var(--accent); }
+.result .strong { font-weight: 600; }
+.result .badge { margin-left: auto; font-size: .7rem; opacity: .8; }
+
+.catalogue {
+  margin-top: .7rem; display: grid; gap: .5rem;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+}
+.product {
+  position: relative; text-align: left; cursor: pointer; padding: .7rem .8rem;
+  border-radius: 10px; border: 1px solid var(--line); background: var(--card);
+  color: var(--ink); font: inherit; display: flex; flex-direction: column; gap: .2rem;
+}
+.product:hover { border-color: var(--accent); }
+.product .pname { font-weight: 600; font-size: .92rem; }
+.product .pmeta { font-size: .7rem; color: var(--ink-soft); }
+.product .pdesc { font-size: .76rem; color: var(--ink-soft); }
+.product .pprice { font-weight: 700; font-size: 1rem; margin-top: .25rem; }
+.product .pprice small { font-weight: 400; font-size: .68rem; color: var(--ink-soft); }
+
+.total { font-size: 1rem; color: var(--ink-soft); }
+.total strong { font-size: 1.25rem; color: var(--ink); }
+
+/* --- destructive confirmation -------------------------------------------- */
+.btn.danger { background: var(--red); color: #fff; border-color: transparent; }
+.btn.danger:hover:not(:disabled) { filter: brightness(1.08); }
+.confirm {
+  margin-top: .8rem; padding: .8rem .9rem; border-radius: 10px;
+  border: 1px solid var(--red);
+  background: color-mix(in srgb, var(--red) 8%, transparent);
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+}
+.confirm .btn-row { margin: 0; }

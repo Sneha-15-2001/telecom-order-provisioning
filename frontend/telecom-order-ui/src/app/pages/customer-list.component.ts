@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Customer, CustomerApiService } from '../services/customer-api.service';
 import { StatusPillComponent } from '../shared/status-pill.component';
+import { fromHttp } from '../shared/user-errors';
 
 /** Customer list with search + status filter (Phase 9). */
 @Component({
@@ -35,8 +36,8 @@ export class CustomerListComponent implements OnInit {
         this.total.set(p.totalElements);
         this.loading.set(false);
       },
-      error: () => {
-        this.error.set('Could not reach customer-service (8081).');
+      error: (e) => {
+        this.error.set(fromHttp(e, 'customers', 'load'));
         this.loading.set(false);
       },
     });

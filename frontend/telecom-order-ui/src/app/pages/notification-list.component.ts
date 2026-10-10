@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Notification, NotificationApiService } from '../services/notification-api.service';
 import { StatusPillComponent } from '../shared/status-pill.component';
+import { fromHttp } from '../shared/user-errors';
 
 /** Notification console: queue, send, retry (Phase 9). */
 @Component({
@@ -29,7 +30,7 @@ export class NotificationListComponent implements OnInit {
         this.rows.set(p.content);
         this.total.set(p.totalElements);
       },
-      error: () => this.error.set('Could not reach notification-service (8085).'),
+      error: (e) => this.error.set(fromHttp(e, 'notifications', 'load')),
     });
   }
 

@@ -2,6 +2,7 @@ package com.telecom.order.integration;
 
 import com.telecom.order.integration.dto.ProvisioningCreateRequest;
 import com.telecom.order.integration.dto.ProvisioningRequestResult;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -53,5 +54,25 @@ public class ProvisioningServiceClient {
         .retrieve()
         .bodyToMono(ProvisioningRequestResult.class)
         .block();
+  }
+
+  /**
+   * Provisioning requests raised for an order.
+   *
+   * rollback() arrives in a later request than create(), so it has no handle on
+   * the request it must reverse — this lookup is what lets compensation find it.
+   */
+  public List<ProvisioningRequestResult> requestsForOrder(Long orderId) {
+    try {
+      ProvisioningRequestResult[] arr = webClient.get()
+          .uri("/api/provisioning/order/{orderId}", orderId)
+          .retrieve()
+          .bodyToMono(ProvisioningRequestResult[].class)
+          .block();
+      return arr == null ? List.of() : List.of(arr);
+    } catch (RuntimeException e) {
+      log.warn("event=PROVISIONING_LOOKUP_FAILED orderId={} error={}", orderId, e.toString());
+      return List.of();
+    }
   }
 }

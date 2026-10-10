@@ -4,6 +4,7 @@ import com.telecom.provisioning.config.CorrelationIdFilter;
 import com.telecom.provisioning.dto.CreateProvisioningRequest;
 import com.telecom.provisioning.dto.ProvisioningHistoryEntry;
 import com.telecom.provisioning.dto.ProvisioningResponse;
+import com.telecom.provisioning.exception.StateConflictException;
 import com.telecom.provisioning.entity.ProvisioningHistory;
 import com.telecom.provisioning.entity.ProvisioningRequest;
 import com.telecom.provisioning.entity.ProvisioningStatus;
@@ -93,7 +94,7 @@ public class ProvisioningService {
   public ProvisioningResponse start(Long id) {
     ProvisioningRequest r = getRequest(id);
     if (r.getStatus() != ProvisioningStatus.PENDING) {
-      throw new IllegalArgumentException("Only PENDING requests can start (current: " + r.getStatus() + ")");
+      throw new StateConflictException("PROVISIONING_STATE_INVALID", "Only PENDING requests can start (current: " + r.getStatus() + ")");
     }
     transition(r, ProvisioningStatus.IN_PROGRESS, "simulation started");
     log("PROVISIONING_STARTED", r);
@@ -104,7 +105,7 @@ public class ProvisioningService {
   public ProvisioningResponse activate(Long id) {
     ProvisioningRequest r = getRequest(id);
     if (r.getStatus() != ProvisioningStatus.IN_PROGRESS) {
-      throw new IllegalArgumentException("Only IN_PROGRESS requests can activate (current: " + r.getStatus() + ")");
+      throw new StateConflictException("PROVISIONING_STATE_INVALID", "Only IN_PROGRESS requests can activate (current: " + r.getStatus() + ")");
     }
     r.setAttempts(r.getAttempts() + 1);
     String missing = missingIdentifier(r);
@@ -124,7 +125,7 @@ public class ProvisioningService {
   public ProvisioningResponse deactivate(Long id) {
     ProvisioningRequest r = getRequest(id);
     if (r.getStatus() != ProvisioningStatus.COMPLETED) {
-      throw new IllegalArgumentException("Only COMPLETED services can be deactivated (current: " + r.getStatus() + ")");
+      throw new StateConflictException("PROVISIONING_STATE_INVALID", "Only COMPLETED services can be deactivated (current: " + r.getStatus() + ")");
     }
     transition(r, ProvisioningStatus.CANCELLED, "service deactivated by request");
     log("SERVICE_DEACTIVATED", r);
@@ -135,7 +136,7 @@ public class ProvisioningService {
   public ProvisioningResponse retry(Long id) {
     ProvisioningRequest r = getRequest(id);
     if (r.getStatus() != ProvisioningStatus.FAILED) {
-      throw new IllegalArgumentException("Only FAILED requests can be retried (current: " + r.getStatus() + ")");
+      throw new StateConflictException("PROVISIONING_STATE_INVALID", "Only FAILED requests can be retried (current: " + r.getStatus() + ")");
     }
     transition(r, ProvisioningStatus.PENDING, "retry requested (attempt " + (r.getAttempts() + 1) + ")");
     log("PROVISIONING_RETRY", r);
@@ -146,7 +147,7 @@ public class ProvisioningService {
   public ProvisioningResponse reprocess(Long id) {
     ProvisioningRequest r = getRequest(id);
     if (r.getStatus() != ProvisioningStatus.FAILED && r.getStatus() != ProvisioningStatus.CANCELLED) {
-      throw new IllegalArgumentException("Only FAILED/CANCELLED requests can be reprocessed (current: " + r.getStatus() + ")");
+      throw new StateConflictException("PROVISIONING_STATE_INVALID", "Only FAILED/CANCELLED requests can be reprocessed (current: " + r.getStatus() + ")");
     }
     r.setLastError(null);
     transition(r, ProvisioningStatus.PENDING, "reprocessed from scratch");
@@ -158,7 +159,7 @@ public class ProvisioningService {
   public ProvisioningResponse cancel(Long id) {
     ProvisioningRequest r = getRequest(id);
     if (r.getStatus() == ProvisioningStatus.COMPLETED || r.getStatus() == ProvisioningStatus.ROLLED_BACK) {
-      throw new IllegalArgumentException("Request cannot be cancelled from " + r.getStatus());
+      throw new StateConflictException("PROVISIONING_STATE_INVALID", "Request cannot be cancelled from " + r.getStatus());
     }
     transition(r, ProvisioningStatus.CANCELLED, "cancelled by request");
     log("PROVISIONING_CANCELLED", r);
@@ -169,7 +170,7 @@ public class ProvisioningService {
   public ProvisioningResponse rollback(Long id) {
     ProvisioningRequest r = getRequest(id);
     if (r.getStatus() != ProvisioningStatus.FAILED && r.getStatus() != ProvisioningStatus.IN_PROGRESS) {
-      throw new IllegalArgumentException("Only FAILED/IN_PROGRESS requests can be rolled back (current: " + r.getStatus() + ")");
+      throw new StateConflictException("PROVISIONING_STATE_INVALID", "Only FAILED/IN_PROGRESS requests can be rolled back (current: " + r.getStatus() + ")");
     }
     transition(r, ProvisioningStatus.ROLLED_BACK, "simulated rollback completed");
     log("PROVISIONING_ROLLED_BACK", r);

@@ -11,3 +11,4 @@ CREATE INDEX IF NOT EXISTS idx_history_order ON order_history (order_id);
 CREATE INDEX IF NOT EXISTS idx_payment_order ON payment (order_id);
 CREATE INDEX IF NOT EXISTS idx_payment_status ON payment (status);
 CREATE INDEX IF NOT EXISTS idx_promo_active ON promotion (active);
+CREATE INDEX IF NOT EXISTS idx_product_active_type ON product (active, item_type);

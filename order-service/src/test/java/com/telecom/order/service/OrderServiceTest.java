@@ -151,7 +151,7 @@ class OrderServiceTest {
   @Test
   void bulkReportsPartialFailurePerItem() {
     var realValidator = jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator();
-    var bulkService = new OrderService(orders, items, history, payments, promotions, realValidator, customerClient, null, null, null);
+    var bulkService = new OrderService(orders, items, history, payments, promotions, realValidator, customerClient, null, null, null, false, 60);
     when(orders.save(any(CustomerOrder.class))).thenAnswer(i -> i.getArgument(0));
     OrderItem saved = new OrderItem();
     saved.setQuantity(1);

@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { CustomerApiService } from '../services/customer-api.service';
+import { fromHttp } from '../shared/user-errors';
 
 /** Customer onboarding form (Phase 9). */
 @Component({
@@ -23,7 +24,7 @@ export class CustomerFormComponent {
     this.api.create(this.model).subscribe({
       next: (c) => this.router.navigate(['/customers', c.id]),
       error: (e) => {
-        this.error.set(e.error?.message ?? 'Create failed — is customer-service (8081) up?');
+        this.error.set(fromHttp(e, 'customers', 'save'));
         this.saving.set(false);
       },
     });

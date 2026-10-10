@@ -10,6 +10,7 @@ import { CarouselComponent, Slide } from '../shared/carousel.component';
 import { CountUpComponent } from '../shared/count-up.component';
 import { RevealDirective } from '../shared/reveal.directive';
 import { StatusPillComponent } from '../shared/status-pill.component';
+import { fromHttp } from '../shared/user-errors';
 
 interface Health {
   name: string;
@@ -92,8 +93,8 @@ export class DashboardComponent implements OnInit {
         this.failedOrders.set(r.failed.content.map((o) => ({ id: o.id, orderNumber: o.orderNumber, status: o.status })));
         this.loading.set(false);
       },
-      error: () => {
-        this.error.set('Backend unreachable — start the five services (8081–8085) first.');
+      error: (e) => {
+        this.error.set(fromHttp(e, 'orders', 'load'));
         this.loading.set(false);
       },
     });

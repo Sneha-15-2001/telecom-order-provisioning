@@ -75,3 +75,20 @@ CREATE TABLE IF NOT EXISTS promotion (
     created_at     TIMESTAMP    NOT NULL DEFAULT NOW(),
     updated_at     TIMESTAMP    NOT NULL DEFAULT NOW()
 );
+
+-- Sellable catalogue. Prices live here (owned by pricing) rather than being
+-- typed by an operator at order entry.
+CREATE TABLE IF NOT EXISTS product (
+    id             BIGSERIAL PRIMARY KEY,
+    product_code   VARCHAR(50)  NOT NULL UNIQUE,
+    name           VARCHAR(200) NOT NULL,
+    item_type      VARCHAR(30)  NOT NULL
+        CHECK (item_type IN ('MOBILE_PLAN','DEVICE','SIM','ESIM','BROADBAND',
+                             'ADDON','ROAMING_PACK','FIBER_EQUIPMENT')),
+    price          NUMERIC(12,2) NOT NULL CHECK (price >= 0),
+    description    VARCHAR(500),
+    data_gb        INTEGER,
+    active         BOOLEAN      NOT NULL DEFAULT TRUE,
+    created_at     TIMESTAMP    NOT NULL DEFAULT NOW(),
+    updated_at     TIMESTAMP    NOT NULL DEFAULT NOW()
+);

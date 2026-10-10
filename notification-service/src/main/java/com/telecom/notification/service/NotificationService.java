@@ -6,6 +6,7 @@ import com.telecom.notification.dto.NotificationAttemptResponse;
 import com.telecom.notification.dto.NotificationResponse;
 import com.telecom.notification.dto.NotifyEventRequest;
 import com.telecom.notification.dto.RenderPreviewRequest;
+import com.telecom.notification.exception.StateConflictException;
 import com.telecom.notification.entity.Notification;
 import com.telecom.notification.entity.NotificationAttempt;
 import com.telecom.notification.entity.NotificationChannel;
@@ -122,7 +123,7 @@ public class NotificationService {
   public NotificationResponse send(Long id) {
     Notification n = getNotification(id);
     if (n.getStatus() != NotificationStatus.PENDING && n.getStatus() != NotificationStatus.RETRYING) {
-      throw new IllegalArgumentException("Only PENDING/RETRYING notifications can be sent (current: " + n.getStatus() + ")");
+      throw new StateConflictException("NOTIFICATION_STATE_INVALID", "Only PENDING/RETRYING notifications can be sent (current: " + n.getStatus() + ")");
     }
     return deliver(n);
   }
@@ -131,7 +132,7 @@ public class NotificationService {
   public NotificationResponse retry(Long id) {
     Notification n = getNotification(id);
     if (n.getStatus() != NotificationStatus.FAILED) {
-      throw new IllegalArgumentException("Only FAILED notifications can be retried (current: " + n.getStatus() + ")");
+      throw new StateConflictException("NOTIFICATION_STATE_INVALID", "Only FAILED notifications can be retried (current: " + n.getStatus() + ")");
     }
     n.setStatus(NotificationStatus.RETRYING);
     return deliver(n);
@@ -152,7 +153,7 @@ public class NotificationService {
   public void delete(Long id) {
     Notification n = getNotification(id);
     if (n.getStatus() != NotificationStatus.PENDING && n.getStatus() != NotificationStatus.CANCELLED) {
-      throw new IllegalArgumentException("Only PENDING/CANCELLED notifications can be deleted (current: " + n.getStatus() + ")");
+      throw new StateConflictException("NOTIFICATION_STATE_INVALID", "Only PENDING/CANCELLED notifications can be deleted (current: " + n.getStatus() + ")");
     }
     attempts.deleteAll(attempts.findByNotificationIdOrderByAttemptNoAsc(id));
     notifications.delete(n);

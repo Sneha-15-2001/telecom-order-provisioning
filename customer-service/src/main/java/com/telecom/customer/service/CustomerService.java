@@ -10,6 +10,7 @@ import com.telecom.customer.dto.CustomerResponse;
 import com.telecom.customer.dto.CustomerValidationResponse;
 import com.telecom.customer.dto.EligibilityResponse;
 import com.telecom.customer.dto.UpdateCustomerRequest;
+import com.telecom.customer.exception.StateConflictException;
 import com.telecom.customer.entity.CorporateAccount;
 import com.telecom.customer.entity.Customer;
 import com.telecom.customer.entity.CustomerAddress;
@@ -156,7 +157,7 @@ public class CustomerService {
   public CustomerResponse suspend(Long id) {
     Customer c = getCustomer(id);
     if (c.getStatus() != CustomerStatus.ACTIVE) {
-      throw new IllegalArgumentException("Only ACTIVE customers can be suspended (current: " + c.getStatus() + ")");
+      throw new StateConflictException("CUSTOMER_STATE_INVALID", "Only ACTIVE customers can be suspended (current: " + c.getStatus() + ")");
     }
     c.setStatus(CustomerStatus.SUSPENDED);
     log.info("service=customer-service correlationId={} event=CUSTOMER_SUSPENDED customerId={} status=SUCCESS",
@@ -168,7 +169,7 @@ public class CustomerService {
   public CustomerResponse reactivate(Long id) {
     Customer c = getCustomer(id);
     if (c.getStatus() != CustomerStatus.SUSPENDED && c.getStatus() != CustomerStatus.INACTIVE) {
-      throw new IllegalArgumentException("Only SUSPENDED/INACTIVE customers can be reactivated (current: " + c.getStatus() + ")");
+      throw new StateConflictException("CUSTOMER_STATE_INVALID", "Only SUSPENDED/INACTIVE customers can be reactivated (current: " + c.getStatus() + ")");
     }
     c.setStatus(CustomerStatus.ACTIVE);
     log.info("service=customer-service correlationId={} event=CUSTOMER_REACTIVATED customerId={} status=SUCCESS",

@@ -13,4 +13,6 @@ public record ApiError(
     @Schema(description = "Machine-readable error code", example = "VALIDATION_ERROR")
         String error,
     @Schema(description = "Human-readable message") String message,
-    @Schema(description = "Request path", example = "/api/provisioning") String path) {}
+    @Schema(description = "Request path", example = "/api/provisioning") String path,
+    @Schema(description = "Correlation ID — trace this in the logs")
+        String correlationId) {}

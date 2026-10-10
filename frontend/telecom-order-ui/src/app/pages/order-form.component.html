@@ -1,38 +1,118 @@
 <main class="page">
   <h1>New order</h1>
-  <p class="muted">Creates a CREATED order for an existing customer. Full lifecycle runs on the order page.</p>
+  <p class="muted">Find the customer, choose what they want, and the system prices it from the catalogue.</p>
+
   @if (error()) { <div class="alert error">{{ error() }}</div> }
+
+  <!-- Step 1 — who is this for -->
   <div class="card">
-    <div class="form">
-      <label>Customer ID<input type="number" [(ngModel)]="model.customerId" /></label>
-      <label>Customer number<input [(ngModel)]="model.customerNumber" /></label>
-      <label>Order type
-        <select [(ngModel)]="model.orderType">
-          <option>NEW_CONNECTION</option>
-          <option>UPGRADE</option>
-          <option>PLAN_CHANGE</option>
-          <option>DEVICE_ONLY</option>
-          <option>BROADBAND</option>
-          <option>BULK</option>
-        </select>
-      </label>
-      <label>Item type
-        <select [(ngModel)]="model.items[0].itemType">
-          <option>MOBILE_PLAN</option>
-          <option>DEVICE</option>
-          <option>SIM</option>
-          <option>ESIM</option>
-          <option>BROADBAND</option>
-          <option>ADDON</option>
-        </select>
-      </label>
-      <label>Product code<input [(ngModel)]="model.items[0].productCode" /></label>
-      <label>Product name<input [(ngModel)]="model.items[0].productName" /></label>
-      <label>Unit price<input type="number" [(ngModel)]="model.items[0].unitPrice" /></label>
-      <div class="btn-row">
-        <button class="btn" (click)="save()" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Create order' }}</button>
-        <a class="btn ghost" routerLink="/orders">Cancel</a>
+    <h2>1 · Customer</h2>
+    @if (customer(); as c) {
+      <div class="row-between">
+        <div>
+          <strong>{{ c.firstName }} {{ c.lastName }}</strong>
+          <span class="muted mono"> · {{ c.customerNumber }} · {{ c.phone || c.email }}</span>
+        </div>
+        <button class="btn small ghost" (click)="clearCustomer()">Change</button>
+      </div>
+    } @else {
+      <input
+        type="text"
+        [value]="customerQuery()"
+        (input)="onCustomerSearch($any($event.target).value)"
+        placeholder="Search by name, phone, email or customer number"
+        aria-label="Search customers" />
+      @if (customerResults().length) {
+        <div class="results">
+          @for (c of customerResults(); track c.id) {
+            <button class="result" (click)="chooseCustomer(c)">
+              <span class="strong">{{ c.firstName }} {{ c.lastName }}</span>
+              <span class="muted mono">{{ c.customerNumber }} · {{ c.phone || c.email }}</span>
+              <span class="badge">{{ c.status }}</span>
+            </button>
+          }
+        </div>
+      } @else if (customerQuery().trim().length >= 2) {
+        <p class="muted" style="margin:.5rem 0 0;font-size:.85rem">No customer matches “{{ customerQuery() }}”.</p>
+      }
+    }
+  </div>
+
+  <!-- Step 2 — what are they buying -->
+  <div class="card">
+    <h2>2 · Products</h2>
+    <div class="toolbar">
+      <input
+        type="text"
+        [value]="productQuery()"
+        (input)="productQuery.set($any($event.target).value)"
+        placeholder="Search plans, devices, broadband"
+        aria-label="Search products" />
+      <select [value]="typeFilter()" (change)="typeFilter.set($any($event.target).value)" aria-label="Filter by type">
+        <option value="">All types</option>
+        @for (t of itemTypes(); track t) {
+          <option [value]="t">{{ t.replace('_', ' ') }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="catalogue">
+      @for (p of visibleProducts(); track p.productCode) {
+        <button class="product" (click)="addProduct(p)">
+          <span class="pname">{{ p.name }}</span>
+          <span class="pmeta">{{ p.itemType.replace('_', ' ') }} · <span class="mono">{{ p.productCode }}</span></span>
+          @if (p.description) { <span class="pdesc">{{ p.description }}</span> }
+          <span class="pprice">₹{{ p.price }}<small>/mo</small></span>
+        </button>
+      } @empty {
+        <p class="muted">No products match that filter.</p>
+      }
+    </div>
+  </div>
+
+  <!-- Step 3 — the basket -->
+  @if (lines().length) {
+    <div class="card">
+      <h2>3 · Order summary</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Product</th><th>Qty</th><th>Price</th><th></th></tr></thead>
+          <tbody>
+            @for (l of lines(); track l.product.productCode) {
+              <tr>
+                <td>{{ l.product.name }}<br /><span class="muted mono">{{ l.product.productCode }}</span></td>
+                <td style="width:110px">
+                  <input type="number" min="1" max="20" [value]="l.quantity"
+                         (change)="setQuantity(l, $any($event.target).valueAsNumber)"
+                         [attr.aria-label]="'Quantity of ' + l.product.name" />
+                </td>
+                <td>₹{{ l.product.price * l.quantity }}</td>
+                <td><button class="btn small ghost" (click)="remove(l)">Remove</button></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="row-between" style="margin-top:.8rem">
+        <div class="toolbar">
+          <label class="field">
+            <span>Order type</span>
+            <select [formControl]="form.controls.orderType">
+              @for (t of orderTypes; track t.value) {
+                <option [value]="t.value">{{ t.label }}</option>
+              }
+            </select>
+          </label>
+        </div>
+        <div class="total">Total <strong>₹{{ total() }}</strong></div>
       </div>
     </div>
+  }
+
+  <div class="btn-row">
+    <button class="btn" (click)="save()" [disabled]="!canSubmit">
+      {{ saving() ? 'Creating…' : 'Create order' }}
+    </button>
+    <button class="btn ghost" (click)="reset()">Clear</button>
   </div>
 </main>

@@ -1,49 +1,102 @@
 <main class="page">
   <a class="link" routerLink="/orders">← All orders</a>
-  @if (error()) { <div class="alert error">{{ error() }}</div> }
-  @if (msg()) { <div class="alert ok">{{ msg() }}</div> }
+
+  @if (notice(); as n) {
+    <div class="alert" [class.ok]="n.kind === 'ok'" [class.error]="n.kind === 'error'">{{ n.text }}</div>
+  }
 
   @if (order(); as o) {
     <div class="hero" style="margin-top:1rem">
       <h1 class="mono">{{ o.orderNumber }}</h1>
-      <p>Customer {{ o.customerNumber || o.customerId }} · {{ o.orderType }} · Total ₹{{ o.totalAmount }} · Discount ₹{{ o.discountAmount }} · <strong>Payable ₹{{ o.payableAmount }}</strong></p>
+      <p>
+        Customer {{ o.customerNumber || o.customerId }} ·
+        {{ humanize(o.orderType, 'orderType') }} ·
+        Total ₹{{ o.totalAmount }} · Discount ₹{{ o.discountAmount }} ·
+        <strong>Payable ₹{{ o.payableAmount }}</strong>
+      </p>
       <div class="hero-actions"><app-status [status]="o.status" /></div>
     </div>
 
+    <!-- Next step: only what is legal from the current status. -->
     <div class="card" style="margin-bottom:1rem">
-      <h2>Lifecycle</h2>
-      <div class="btn-row">
-        <button class="btn small" (click)="run('validate')">Validate</button>
-        <button class="btn small" (click)="run('submit')">Submit</button>
-        <button class="btn small ghost" (click)="run('cancel')">Cancel</button>
-        <button class="btn small ghost" (click)="run('retry')">Retry</button>
-        <button class="btn small ghost" (click)="run('reprocess')">Reprocess</button>
-        <button class="btn small ghost" (click)="run('rollback')">Rollback</button>
+      <h2>Next step</h2>
+      @if (terminal()) {
+        <p class="muted">{{ terminalNote() }}</p>
+      } @else {
+        <div class="btn-row">
+          @for (a of primaryActions(); track a.id) {
+            <button class="btn" (click)="invoke(a)" [disabled]="busy()"
+                    [title]="a.hint">{{ a.label }}</button>
+          }
+        </div>
+        <div class="btn-row" style="margin-top:.5rem">
+          @for (a of secondaryActions(); track a.id) {
+            <button class="btn small" [class.ghost]="!a.destructive" [class.danger]="a.destructive"
+                    (click)="invoke(a)" [disabled]="busy()" [title]="a.hint">{{ a.label }}</button>
+          }
+        </div>
+        <p class="muted" style="margin:.6rem 0 0;font-size:.82rem">
+          Available while the order is <strong>{{ humanize(o.status, 'order') }}</strong>.
+        </p>
+      }
+
+      @if (confirm(); as a) {
+        <div class="confirm">
+          <div>
+            <strong>{{ a.label }}?</strong>
+            <p class="muted" style="margin:.25rem 0 0">{{ a.hint }}</p>
+            <p class="muted" style="margin:.35rem 0 0;font-size:.82rem">
+              This affects order <span class="mono">{{ o.orderNumber }}</span> and cannot be undone from here.
+            </p>
+          </div>
+          <div class="btn-row">
+            <button class="btn small" (click)="cancelConfirm()">Keep order</button>
+            <button class="btn small danger" (click)="confirmAction()">Yes, {{ a.label.toLowerCase() }}</button>
+          </div>
+        </div>
+      }
+    </div>
+
+    @if (o.status === 'PAYMENT_PENDING') {
+      <div class="card" style="margin-bottom:1rem">
+        <h2>Take payment</h2>
+        <div class="toolbar">
+          <input type="number" [ngModel]="payAmount()" (ngModelChange)="payAmount.set($event)"
+                 style="width:150px" aria-label="Amount to collect" />
+          <select [ngModel]="payMethod()" (ngModelChange)="payMethod.set($event)" aria-label="Payment method">
+            <option>UPI</option>
+            <option>CARD</option>
+            <option>NETBANKING</option>
+            <option>WALLET</option>
+            <option>CASH</option>
+          </select>
+          <button class="btn small" (click)="pay()" [disabled]="busy() || overpay()">
+            Collect ₹{{ payAmount() }}
+          </button>
+        </div>
+        @if (overpay()) {
+          <p class="muted" style="margin:.4rem 0 0;font-size:.82rem">
+            Amount due is ₹{{ o.payableAmount }}. Correct the figure before collecting.
+          </p>
+        }
       </div>
-      <h2>Payment</h2>
-      <div class="toolbar">
-        <input type="number" [(ngModel)]="payAmount" style="width:140px" />
-        <select [(ngModel)]="payMethod">
-          <option>UPI</option>
-          <option>CARD</option>
-          <option>NETBANKING</option>
-          <option>WALLET</option>
-          <option>CASH</option>
-        </select>
-        <button class="btn small" (click)="pay()">Pay + validate</button>
+    }
+
+    @if (o.status === 'VALIDATED') {
+      <div class="card" style="margin-bottom:1rem">
+        <h2>Promotion</h2>
+        <div class="toolbar">
+          <input [ngModel]="promoCode()" (ngModelChange)="promoCode.set($event)"
+                 placeholder="Promotion code" style="width:200px" aria-label="Promotion code" />
+          <button class="btn small" (click)="applyPromo()" [disabled]="busy() || !promoCode().trim()">Apply</button>
+          @if (o.promoCode) { <span class="muted">Applied: <span class="mono">{{ o.promoCode }}</span></span> }
+        </div>
       </div>
-      <h2>Promotion</h2>
-      <div class="toolbar">
-        <input [(ngModel)]="promoCode" style="width:160px" />
-        <button class="btn small" (click)="applyPromo()">Apply</button>
-        @if (o.promoCode) { <span class="muted">Applied: <span class="mono">{{ o.promoCode }}</span></span> }
-      </div>
-      <h2>Fulfillment saga</h2>
-      <div class="btn-row">
-        <button class="btn small" (click)="fulfill()">Fulfill end-to-end</button>
-        <button class="btn small ghost" (click)="fulfill('ACTIVATE')">Fulfill (fail at activate)</button>
-      </div>
-      @if (fulfillment(); as f) {
+    }
+
+    @if (fulfillment(); as f) {
+      <div class="card" style="margin-bottom:1rem">
+        <h2>Activation steps</h2>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Step</th><th>Status</th><th>Detail</th></tr></thead>
@@ -54,8 +107,8 @@
             </tbody>
           </table>
         </div>
-      }
-    </div>
+      </div>
+    }
 
     <div class="grid two">
       <div class="card">
@@ -65,7 +118,11 @@
             <thead><tr><th>Product</th><th>Qty</th><th>Price</th></tr></thead>
             <tbody>
               @for (i of o.items; track $index) {
-                <tr><td>{{ i.productName }}<br /><span class="mono muted">{{ i.productCode }}</span></td><td>{{ i.quantity }}</td><td>₹{{ i.unitPrice }}</td></tr>
+                <tr>
+                  <td>{{ i.productName }}<br /><span class="mono muted">{{ humanize(i.itemType, 'itemType') }} · {{ i.productCode }}</span></td>
+                  <td>{{ i.quantity }}</td>
+                  <td>₹{{ i.unitPrice }}</td>
+                </tr>
               }
             </tbody>
           </table>

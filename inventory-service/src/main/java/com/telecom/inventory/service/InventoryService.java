@@ -6,6 +6,7 @@ import com.telecom.inventory.dto.ReconcileRequest;
 import com.telecom.inventory.dto.ResourceHistoryEntry;
 import com.telecom.inventory.dto.ResourceResponse;
 import com.telecom.inventory.dto.UpdateResourceRequest;
+import com.telecom.inventory.exception.StateConflictException;
 import com.telecom.inventory.entity.InventoryHistory;
 import com.telecom.inventory.entity.InventoryResource;
 import com.telecom.inventory.entity.ResourceStatus;
@@ -110,7 +111,7 @@ public class InventoryService {
   public void delete(Long id) {
     InventoryResource r = getResource(id);
     if (r.getStatus() != ResourceStatus.AVAILABLE) {
-      throw new IllegalArgumentException("Only AVAILABLE resources can be deleted (current: " + r.getStatus() + ")");
+      throw new StateConflictException("RESOURCE_STATE_INVALID", "Only AVAILABLE resources can be deleted (current: " + r.getStatus() + ")");
     }
     reservations.deleteAll(reservations.findByResourceId(id));
     history.deleteAll(history.findByResourceIdOrderByCreatedAtAscIdAsc(id));
@@ -123,7 +124,7 @@ public class InventoryService {
   public ResourceResponse quarantine(Long id, String reason) {
     InventoryResource r = getResource(id);
     if (r.getStatus() != ResourceStatus.AVAILABLE && r.getStatus() != ResourceStatus.RESERVED) {
-      throw new IllegalArgumentException("Only AVAILABLE/RESERVED resources can be quarantined (current: " + r.getStatus() + ")");
+      throw new StateConflictException("RESOURCE_STATE_INVALID", "Only AVAILABLE/RESERVED resources can be quarantined (current: " + r.getStatus() + ")");
     }
     ResourceStatus from = r.getStatus();
     r.setStatus(ResourceStatus.QUARANTINED);
@@ -136,7 +137,7 @@ public class InventoryService {
   public ResourceResponse releaseQuarantine(Long id, String reason) {
     InventoryResource r = getResource(id);
     if (r.getStatus() != ResourceStatus.QUARANTINED) {
-      throw new IllegalArgumentException("Only QUARANTINED resources can be released (current: " + r.getStatus() + ")");
+      throw new StateConflictException("RESOURCE_STATE_INVALID", "Only QUARANTINED resources can be released (current: " + r.getStatus() + ")");
     }
     r.setStatus(ResourceStatus.AVAILABLE);
     record(r, "QUARANTINE_RELEASED", ResourceStatus.QUARANTINED, ResourceStatus.AVAILABLE, reason);

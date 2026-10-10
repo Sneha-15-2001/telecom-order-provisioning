@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { InvResource, InventoryApiService, Reservation } from '../services/inventory-api.service';
 import { StatusPillComponent } from '../shared/status-pill.component';
+import { fromHttp } from '../shared/user-errors';
 
 /** Inventory console: stock, availability, reserve → confirm → release (Phase 9). */
 @Component({
@@ -33,7 +34,7 @@ export class InventoryComponent implements OnInit {
         this.rows.set(p.content);
         this.total.set(p.totalElements);
       },
-      error: () => this.error.set('Could not reach inventory-service (8083).'),
+      error: (e) => this.error.set(fromHttp(e, 'inventory', 'load')),
     });
   }
 

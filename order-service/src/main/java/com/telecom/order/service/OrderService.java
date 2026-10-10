@@ -15,6 +15,11 @@ import com.telecom.order.dto.OrderStatusResponse;
 import com.telecom.order.dto.OrderTimelineResponse;
 import com.telecom.order.dto.OrderTimelineResponse.TimelineEvent;
 import com.telecom.order.dto.UpdateOrderRequest;
+import com.telecom.order.exception.BadGatewayException;
+import com.telecom.order.exception.DependencyUnavailableException;
+import com.telecom.order.exception.BadGatewayException;
+import com.telecom.order.exception.DependencyUnavailableException;
+import com.telecom.order.exception.StateConflictException;
 import com.telecom.order.entity.CustomerOrder;
 import com.telecom.order.entity.DiscountType;
 import com.telecom.order.entity.OrderHistory;
@@ -22,6 +27,7 @@ import com.telecom.order.entity.OrderItem;
 import com.telecom.order.entity.OrderItemType;
 import com.telecom.order.entity.OrderPriority;
 import com.telecom.order.entity.OrderStatus;
+import com.telecom.order.entity.OrderType;
 import com.telecom.order.entity.Payment;
 import com.telecom.order.entity.Promotion;
 import com.telecom.order.integration.CustomerServiceClient;
@@ -84,12 +90,16 @@ public class OrderService {
   private final InventoryServiceClient inventoryClient;
   private final ProvisioningServiceClient provisioningClient;
   private final NotificationServiceClient notificationClient;
+  private final boolean faultInjectionEnabled;
+  private final int reservationTtlMinutes;
 
   public OrderService(OrderRepository orders, OrderItemRepository items,
       OrderHistoryRepository history, PaymentRepository payments,
       PromotionRepository promotions, Validator validator,
       CustomerServiceClient customerClient, InventoryServiceClient inventoryClient,
-      ProvisioningServiceClient provisioningClient, NotificationServiceClient notificationClient) {
+      ProvisioningServiceClient provisioningClient, NotificationServiceClient notificationClient,
+      @org.springframework.beans.factory.annotation.Value("${demo.fault-injection-enabled:false}") boolean faultInjectionEnabled,
+      @org.springframework.beans.factory.annotation.Value("${demo.reservation-ttl-minutes:60}") int reservationTtlMinutes) {
     this.orders = orders;
     this.items = items;
     this.history = history;
@@ -100,6 +110,8 @@ public class OrderService {
     this.inventoryClient = inventoryClient;
     this.provisioningClient = provisioningClient;
     this.notificationClient = notificationClient;
+    this.faultInjectionEnabled = faultInjectionEnabled;
+    this.reservationTtlMinutes = reservationTtlMinutes;
   }
 
   // ---------- create / read ----------
@@ -229,29 +241,88 @@ public class OrderService {
   public OrderResponse validate(Long id) {
     CustomerOrder o = getOrder(id);
     if (o.getStatus() != OrderStatus.CREATED && o.getStatus() != OrderStatus.RETRYING) {
-      throw new IllegalArgumentException("Only CREATED/RETRYING orders can be validated (current: " + o.getStatus() + ")");
+      throw new StateConflictException("ORDER_STATE_INVALID", "Only CREATED/RETRYING orders can be validated (current: " + o.getStatus() + ")");
     }
-    if (items.findByOrderIdOrderByIdAsc(id).isEmpty()) {
+    List<OrderItem> lines = items.findByOrderIdOrderByIdAsc(id);
+    if (lines.isEmpty()) {
       return fail(o, "Order has no items");
     }
     transition(o, OrderStatus.VALIDATING, "validation started");
-    // Phase 7: synchronous REST check against customer-service (pre-Kafka).
+
+    String shape = orderTypeProblem(o.getOrderType(), lines);
+    if (shape != null) {
+      return fail(o, "ORDER_TYPE_MISMATCH: " + shape);
+    }
+
+    // Business rejection only. Infrastructure failure (customer-service down,
+    // erroring, or timing out) throws DependencyUnavailableException / BadGatewayException
+    // instead, which roll this transaction back: the VALIDATING transition is
+    // undone and the order stays CREATED and retryable. Failing it here would
+    // let someone else's outage permanently kill a customer order.
     CustomerValidationResult customer = customerClient.validateCustomer(o.getCustomerId());
     if (customer == null || !customer.valid()) {
       String reason = "CUSTOMER_INVALID: " + (customer == null ? "no response" : customer.reasons());
       return fail(o, reason);
     }
-    // NOTE: inventory eligibility REST checks plug in here in Phase 10.
+
+    // A change or upgrade only makes sense for a customer who already has a
+    // live service. customer-service owns eligibility for exactly this and the
+    // endpoint existed unused; asking it here is what stops an agent selling a
+    // "plan upgrade" to someone with no plan.
+    if (requiresExistingSubscription(o.getOrderType())) {
+      CustomerValidationResult eligibility = customerClient.eligibility(o.getCustomerId());
+      if (eligibility != null && !eligibility.valid()) {
+        return fail(o, "NOT_ELIGIBLE: " + String.join("; ", eligibility.reasons()));
+      }
+    }
+
     transition(o, OrderStatus.VALIDATED, "all local checks passed");
     log("ORDER_VALIDATED", o);
     return OrderMapper.toResponse(o, items);
+  }
+
+  /** Upgrades and plan changes presuppose an existing service. */
+  private static boolean requiresExistingSubscription(OrderType type) {
+    return type == OrderType.UPGRADE || type == OrderType.PLAN_CHANGE;
+  }
+
+  /**
+   * Coherence between the order type and what is actually in the basket.
+   *
+   * Returns a human-readable problem, or null when the basket is fine. Without
+   * this, {@code orderType} was recorded and never read — six enum values that
+   * all behaved identically, which is not a real order model.
+   */
+  private static String orderTypeProblem(OrderType type, List<OrderItem> lines) {
+    if (type == null) {
+      return "order type is not set";
+    }
+    boolean has = lines.stream()
+        .anyMatch(i -> i.getItemType() == type.getRequiredItemType());
+    switch (type) {
+      case NEW_CONNECTION, UPGRADE, PLAN_CHANGE:
+        return has ? null : "a " + type.getRequiredItemType()
+            + " line is required for a " + type + " order";
+      case BROADBAND:
+        return has ? null : "a BROADBAND line is required for a broadband order";
+      case DEVICE_ONLY:
+        // A device-only order is exactly that: nothing else should be on it.
+        boolean other = lines.stream()
+            .anyMatch(i -> i.getItemType() != OrderItemType.DEVICE);
+        return other ? "a device-only order cannot also contain "
+            + "non-device lines" : null;
+      case BULK:
+        return null;
+      default:
+        return null;
+    }
   }
 
   @Transactional
   public OrderResponse submit(Long id) {
     CustomerOrder o = getOrder(id);
     if (o.getStatus() != OrderStatus.VALIDATED) {
-      throw new IllegalArgumentException("Only VALIDATED orders can be submitted (current: " + o.getStatus() + ")");
+      throw new StateConflictException("ORDER_STATE_INVALID", "Only VALIDATED orders can be submitted (current: " + o.getStatus() + ")");
     }
     // Phase 7 will call inventory reserve + provisioning here; stop at PAYMENT_PENDING in Phase 3.
     transition(o, OrderStatus.PAYMENT_PENDING, "submitted, awaiting payment");
@@ -263,7 +334,7 @@ public class OrderService {
   public OrderResponse cancel(Long id) {
     CustomerOrder o = getOrder(id);
     if (o.getStatus() == OrderStatus.COMPLETED || o.getStatus() == OrderStatus.CANCELLED) {
-      throw new IllegalArgumentException("Order cannot be cancelled from " + o.getStatus());
+      throw new StateConflictException("ORDER_STATE_INVALID", "Order cannot be cancelled from " + o.getStatus());
     }
     transition(o, OrderStatus.CANCELLED, "cancelled by request");
     log("ORDER_CANCELLED", o);
@@ -274,7 +345,7 @@ public class OrderService {
   public OrderResponse retry(Long id) {
     CustomerOrder o = getOrder(id);
     if (o.getStatus() != OrderStatus.FAILED) {
-      throw new IllegalArgumentException("Only FAILED orders can be retried (current: " + o.getStatus() + ")");
+      throw new StateConflictException("ORDER_STATE_INVALID", "Only FAILED orders can be retried (current: " + o.getStatus() + ")");
     }
     transition(o, OrderStatus.RETRYING, "retry requested, awaiting validation");
     log("ORDER_RETRYING", o);
@@ -286,7 +357,7 @@ public class OrderService {
     CustomerOrder o = getOrder(id);
     if (o.getStatus() != OrderStatus.FAILED && o.getStatus() != OrderStatus.RETRYING
         && o.getStatus() != OrderStatus.CANCELLED) {
-      throw new IllegalArgumentException("Only FAILED/RETRYING/CANCELLED orders can be reprocessed (current: " + o.getStatus() + ")");
+      throw new StateConflictException("ORDER_STATE_INVALID", "Only FAILED/RETRYING/CANCELLED orders can be reprocessed (current: " + o.getStatus() + ")");
     }
     o.setStatus(OrderStatus.CREATED);
     record(o, "ORDER_REPROCESSED", null, OrderStatus.CREATED, "restarted from scratch, re-validate to proceed");
@@ -300,12 +371,46 @@ public class OrderService {
     if (o.getStatus() != OrderStatus.PROVISIONING && o.getStatus() != OrderStatus.ACTIVATING
         && o.getStatus() != OrderStatus.INVENTORY_RESERVED
         && o.getStatus() != OrderStatus.PAYMENT_COMPLETED
-        && o.getStatus() != OrderStatus.FAILED) {
-      throw new IllegalArgumentException("Order cannot be rolled back from " + o.getStatus());
+        && o.getStatus() != OrderStatus.FAILED
+        && o.getStatus() != OrderStatus.COMPLETED) {
+      throw new StateConflictException("ORDER_STATE_INVALID", "Order cannot be rolled back from " + o.getStatus());
     }
-    // Phase 10 will release inventory + roll back provisioning here; simulate the two-step flow.
     transition(o, OrderStatus.ROLLING_BACK, "compensation started");
-    transition(o, OrderStatus.CANCELLED, "compensation completed");
+
+    // Actually compensate. This used to move the status and nothing else, so
+    // cancelling an order after stock was reserved left the number or SIM held
+    // forever and the pool drained a little more with every rollback.
+    List<String> compensated = new ArrayList<>();
+    for (InventoryReservationResult r : inventoryClient.reservationsForOrder(id)) {
+      // Only a live hold can be released; confirmed/expired ones already moved on.
+      if (r == null || r.id() == null || !"ACTIVE".equalsIgnoreCase(String.valueOf(r.status()))) {
+        continue;
+      }
+      try {
+        inventoryClient.cancel(r.id());
+        compensated.add("reservation " + r.reservationNumber());
+      } catch (RuntimeException e) {
+        record(o, "COMPENSATION_INCOMPLETE", null, null,
+            "could not release reservation " + r.reservationNumber() + ": " + e.getMessage());
+      }
+    }
+    for (ProvisioningRequestResult pr : provisioningClient.requestsForOrder(id)) {
+      if (pr == null || pr.id() == null || "COMPLETED".equalsIgnoreCase(String.valueOf(pr.status()))) {
+        continue;
+      }
+      try {
+        provisioningClient.rollback(pr.id());
+        compensated.add("provisioning " + pr.requestNumber());
+      } catch (RuntimeException e) {
+        record(o, "COMPENSATION_INCOMPLETE", null, null,
+            "could not roll back provisioning " + pr.requestNumber() + ": " + e.getMessage());
+      }
+    }
+
+    String detail = compensated.isEmpty()
+        ? "compensation completed; nothing was held or provisioned"
+        : "compensated: " + String.join(", ", compensated);
+    transition(o, OrderStatus.CANCELLED, detail);
     log("ORDER_ROLLED_BACK", o);
     return OrderMapper.toResponse(o, items);
   }
@@ -314,7 +419,7 @@ public class OrderService {
   public OrderResponse modify(Long id, ModifyOrderRequest req) {
     CustomerOrder o = getOrder(id);
     if (o.getStatus() != OrderStatus.CREATED && o.getStatus() != OrderStatus.VALIDATED) {
-      throw new IllegalArgumentException("Only CREATED/VALIDATED orders can be modified (current: " + o.getStatus() + ")");
+      throw new StateConflictException("ORDER_STATE_INVALID", "Only CREATED/VALIDATED orders can be modified (current: " + o.getStatus() + ")");
     }
     items.deleteByOrderId(id);
     items.flush();
@@ -373,6 +478,13 @@ public class OrderService {
    */
   @Transactional
   public FulfillmentResponse fulfill(Long id, String failAt) {
+    // A caller can ask for a failure at a chosen step. That is a test control,
+    // so it is refused unless explicitly enabled.
+    if (failAt != null && !failAt.isBlank() && !faultInjectionEnabled) {
+      throw new IllegalArgumentException(
+          "Fault injection is disabled. Set FAULT_INJECTION_ENABLED=true to use ?failAt=.");
+    }
+    String fault = faultInjectionEnabled ? failAt : null;
     CustomerOrder o = getOrder(id);
     if (o.getStatus() != OrderStatus.PAYMENT_COMPLETED) {
       throw new IllegalArgumentException(
@@ -388,7 +500,7 @@ public class OrderService {
     // --- step 1: reserve ---
     InventoryReservationResult reservation = null;
     String reservedIdentifier = null;
-    if ("RESERVE".equalsIgnoreCase(failAt)) {
+    if ("RESERVE".equalsIgnoreCase(fault)) {
       return failFulfillment(o, steps, "RESERVE", "INVENTORY_SHORTAGE (injected): no free resource");
     }
     if (first == null) {
@@ -400,10 +512,18 @@ public class OrderService {
           return failFulfillment(o, steps, "RESERVE", "INVENTORY_SHORTAGE: no AVAILABLE " + resourceTypeFor(first.getItemType()));
         }
         reservation = inventoryClient.reserve(
-            new InventoryReserveRequest(free.get(0).id(), o.getId(), o.getCustomerId(), 60));
+            new InventoryReserveRequest(free.get(0).id(), o.getId(), o.getCustomerId(), reservationTtlMinutes));
         reservedIdentifier = free.get(0).identifier();
         steps.add(new FulfillmentStep("RESERVE", "SUCCESS", reservation.reservationNumber() + " (" + reservation.resourceNumber() + ")"));
         transition(o, OrderStatus.INVENTORY_RESERVED, "reservation " + reservation.reservationNumber());
+      } catch (BadGatewayException | DependencyUnavailableException ex) {
+        // The stockroom is broken, not empty. Failing the order here would
+        // permanently kill a customer order that has already been paid for,
+        // because a dependency had a bad minute. Let the exception escape so
+        // the caller gets 502/503 and the transaction rolls back to
+        // PAYMENT_COMPLETED, ready to retry once inventory recovers.
+        compensate(reservation, null);
+        throw ex;
       } catch (RuntimeException ex) {
         return failFulfillment(o, steps, "RESERVE", "inventory call failed: " + ex.getMessage());
       }
@@ -417,11 +537,11 @@ public class OrderService {
       // The reserved number itself is the MSISDN to activate.
       msisdn = reservedIdentifier;
     }
-    if ("ACTIVATE".equalsIgnoreCase(failAt)) {
+    if ("ACTIVATE".equalsIgnoreCase(fault)) {
       msisdn = null;
       resourceNumber = null;
     }
-    ProvisioningRequestResult prv;
+    ProvisioningRequestResult prv = null;
     try {
       prv = provisioningClient.create(new ProvisioningCreateRequest(o.getId(), o.getCustomerId(),
           serviceType, msisdn, resourceNumber, first != null ? first.getProductCode() : null));
@@ -445,8 +565,14 @@ public class OrderService {
               "confirm failed (non-blocking): " + ex.getMessage()));
         }
       }
+    } catch (BadGatewayException | DependencyUnavailableException ex) {
+      // provisioning-service is broken. Same reasoning as the reserve step:
+      // compensate what we took, then let 502/503 surface so the order stays
+      // retryable instead of being permanently failed on a dependency's bad day.
+      compensate(reservation, prv != null ? prv.id() : null);
+      throw ex;
     } catch (RuntimeException ex) {
-      compensate(reservation, null);
+      compensate(reservation, prv != null ? prv.id() : null);
       return failFulfillment(o, steps, "PROVISION", "provisioning call failed: " + ex.getMessage());
     }
 
@@ -454,7 +580,7 @@ public class OrderService {
     transition(o, OrderStatus.COMPLETED, "fulfillment saga completed");
     log("ORDER_COMPLETED", o);
     try {
-      String recipient = "NOTIFY".equalsIgnoreCase(failAt) ? "fail-test@example.com" : customerPhone(o);
+      String recipient = customerPhone(o);
       if (recipient == null) {
         steps.add(new FulfillmentStep("NOTIFY", "SKIPPED", "no customer phone available"));
       } else {
@@ -539,7 +665,7 @@ public class OrderService {
 
   private void requireEditable(CustomerOrder o) {
     if (o.getStatus() == OrderStatus.COMPLETED || o.getStatus() == OrderStatus.CANCELLED) {
-      throw new IllegalArgumentException("Order cannot be edited from " + o.getStatus());
+      throw new StateConflictException("ORDER_STATE_INVALID", "Order cannot be edited from " + o.getStatus());
     }
   }
 

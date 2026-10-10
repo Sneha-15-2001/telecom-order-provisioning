@@ -23,6 +23,11 @@ server:
 
 app:
   version: 0.0.1-SNAPSHOT
+  # Order intake rate limit. A runaway client or a double-clicking agent must
+  # not be able to fill the database or drain the number pool.
+  rate-limit:
+    max-requests: ${RATE_LIMIT_MAX_REQUESTS:120}
+    window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:60}
 
 # Phase 7: synchronous REST integration (pre-Kafka). No cross-database access;
 # order-service calls the owning service over HTTP with X-Correlation-ID.
@@ -60,3 +65,18 @@ logging:
     org.hibernate.SQL: WARN
   pattern:
     console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSS} %-5level [${spring.application.name},%X{correlationId:-none}] %logger{36} - %msg%n"
+
+# Demonstration hooks. The failAt fault injector on /api/orders/{id}/fulfill is
+# a test control, not a production feature: leaving it reachable means anyone
+# with network access can force an order to fail at a chosen step. It is off by
+# default and must be switched on deliberately.
+demo:
+  fault-injection-enabled: ${FAULT_INJECTION_ENABLED:false}
+  # Minutes a fulfillment hold is kept before it expires.
+  reservation-ttl-minutes: ${RESERVATION_TTL_MINUTES:60}
+
+# Fault injection for platform-failure incident scenarios. Off by default:
+# enabling it makes this service fabricate 5xx/503 responses, which looks
+# exactly like a real outage.
+chaos:
+  enabled: ${CHAOS_ENABLED:false}
